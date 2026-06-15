@@ -1,11 +1,11 @@
 'use client'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { User } from '@/types/auth.types'
+import type { AuthUser } from '@/types/auth.types'
 
 interface AuthState {
-  user: User | null
-  setAuth: (user: User) => void
+  user: AuthUser | null
+  setAuth: (user: AuthUser) => void
   logout: () => void
 }
 

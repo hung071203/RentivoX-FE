@@ -4,11 +4,11 @@ export interface User {
   id: string
   email: string
   role: UserRole
-  full_name: string
+  fullName: string
   phone: string
-  is_active: boolean
-  created_at: string
-  updated_at: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 export interface LoginRequest {
@@ -16,7 +16,9 @@ export interface LoginRequest {
   password: string
 }
 
+export type AuthUser = Pick<User, 'id' | 'email' | 'fullName' | 'role'>
+
 export interface LoginResponse {
-  access_token: string
-  user: User
+  accessToken: string
+  user: AuthUser
 }

@@ -16,7 +16,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export default function LoginForm() {
-  const { mutate: login, isPending, error } = useLogin()
+  const { mutate: login, isPending } = useLogin()
 
   const {
     register,
@@ -31,42 +31,42 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="space-y-1.5">
-        <Label htmlFor="email">Email</Label>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <div className="space-y-2">
+        <Label htmlFor="email" className="text-[15px] font-medium">
+          Email
+        </Label>
         <Input
           id="email"
           type="email"
           placeholder="admin@rentivox.com"
           autoComplete="email"
+          className="h-12 text-[15px]"
           {...register('email')}
         />
         {errors.email && (
-          <p className="text-xs text-red-500">{errors.email.message}</p>
+          <p className="text-sm text-destructive">{errors.email.message}</p>
         )}
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="password">Mật khẩu</Label>
+      <div className="space-y-2">
+        <Label htmlFor="password" className="text-[15px] font-medium">
+          Mật khẩu
+        </Label>
         <Input
           id="password"
           type="password"
           placeholder="••••••••"
           autoComplete="current-password"
+          className="h-12 text-[15px]"
           {...register('password')}
         />
         {errors.password && (
-          <p className="text-xs text-red-500">{errors.password.message}</p>
+          <p className="text-sm text-destructive">{errors.password.message}</p>
         )}
       </div>
 
-      {error && (
-        <p className="text-sm text-red-500 text-center">
-          Email hoặc mật khẩu không đúng
-        </p>
-      )}
-
-      <Button type="submit" className="w-full" disabled={isPending}>
+      <Button type="submit" className="w-full h-12 text-[15px] font-semibold mt-2" disabled={isPending}>
         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Đăng nhập
       </Button>
