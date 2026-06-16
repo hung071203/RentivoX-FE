@@ -64,9 +64,9 @@ import {
   useDeleteUser,
 } from "@/hooks/useAdmin";
 import { useAuthStore } from "@/stores/auth.store";
-import { USER_ROLE_LABEL } from "@/constants/enums";
+import { GENDER_LABEL, USER_ROLE_LABEL } from "@/constants/enums";
 import { formatDate } from "@/utils/format";
-import type { User, UserRole } from "@/types/auth.types";
+import type { Gender, User, UserRole } from "@/types/auth.types";
 import type {
   GetUsersParams,
   CreateUserPayload,
@@ -75,6 +75,20 @@ import type {
 
 // ─── Validation ────────────────────────────────────────────────────────────────
 
+const MAX_DOB = (() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 18);
+  return d.toISOString().split("T")[0];
+})();
+
+const dobField = z
+  .string()
+  .optional()
+  .refine(
+    (val) => !val || new Date(val) <= new Date(MAX_DOB),
+    "Người dùng phải từ 18 tuổi trở lên",
+  );
+
 const createSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
   fullName: z.string().min(2, "Họ tên tối thiểu 2 ký tự"),
@@ -82,6 +96,8 @@ const createSchema = z.object({
   phone: z
     .string()
     .regex(/^(0[3-9])[0-9]{8}$/, "Số điện thoại không hợp lệ (VD: 0901234567)"),
+  dateOfBirth: dobField,
+  gender: z.enum(["male", "female", "other"]).optional(),
 });
 
 const updateSchema = z.object({
@@ -91,6 +107,8 @@ const updateSchema = z.object({
     .string()
     .regex(/^(0[3-9])[0-9]{8}$/, "Số điện thoại không hợp lệ (VD: 0901234567)"),
   isResetPassword: z.boolean().optional(),
+  dateOfBirth: dobField,
+  gender: z.enum(["male", "female", "other"]).optional(),
 });
 
 type CreateForm = z.infer<typeof createSchema>;
@@ -227,6 +245,7 @@ export default function AdminUsersPage() {
     handleSubmit: handleCreateSubmit,
     reset: resetCreate,
     setValue: setCreateValue,
+    watch: watchCreate,
     formState: { errors: createErrors },
   } = useForm<CreateForm>({ resolver: zodResolver(createSchema) });
 
@@ -235,6 +254,7 @@ export default function AdminUsersPage() {
     handleSubmit: handleEditSubmit,
     reset: resetEdit,
     watch: watchEdit,
+    setValue: setEditValue,
     formState: { errors: editErrors },
   } = useForm<UpdateForm>({ resolver: zodResolver(updateSchema) });
 
@@ -268,6 +288,8 @@ export default function AdminUsersPage() {
       email: user.email,
       phone: user.phone ?? "",
       isResetPassword: false,
+      dateOfBirth: user.dateOfBirth ?? "",
+      gender: user.gender ?? undefined,
     });
   }
 
@@ -282,13 +304,29 @@ export default function AdminUsersPage() {
   }
 
   function onCreateSubmit(form: CreateForm) {
-    createUser.mutate(form as CreateUserPayload, { onSuccess: closeCreate });
+    const payload: CreateUserPayload = {
+      email: form.email,
+      fullName: form.fullName,
+      role: form.role,
+      phone: form.phone,
+      dateOfBirth: form.dateOfBirth || undefined,
+      gender: form.gender,
+    };
+    createUser.mutate(payload, { onSuccess: closeCreate });
   }
 
   function onEditSubmit(form: UpdateForm) {
     if (!editUser) return;
+    const payload: UpdateUserPayload = {
+      fullName: form.fullName,
+      email: form.email,
+      phone: form.phone,
+      isResetPassword: form.isResetPassword,
+      dateOfBirth: form.dateOfBirth || undefined,
+      gender: form.gender,
+    };
     updateUser.mutate(
-      { id: editUser.id, payload: form as UpdateUserPayload },
+      { id: editUser.id, payload },
       { onSuccess: closeEdit },
     );
   }
@@ -593,6 +631,34 @@ export default function AdminUsersPage() {
                   </SelectContent>
                 </Select>
               </FormField>
+
+              <FormField label="Ngày sinh" error={createErrors.dateOfBirth?.message}>
+                <Input
+                  type="date"
+                  max={MAX_DOB}
+                  {...registerCreate("dateOfBirth")}
+                />
+              </FormField>
+
+              <FormField label="Giới tính" error={createErrors.gender?.message}>
+                <Select
+                  value={watchCreate("gender") ?? ""}
+                  onValueChange={(v) =>
+                    setCreateValue("gender", v as Gender, { shouldValidate: true })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn giới tính" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(GENDER_LABEL).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
             </div>
 
             <div className="px-6 py-4 border-t flex items-center justify-end gap-3 bg-muted/30">
@@ -640,6 +706,34 @@ export default function AdminUsersPage() {
                 error={editErrors.phone?.message}
               >
                 <Input {...registerEdit("phone")} />
+              </FormField>
+
+              <FormField label="Ngày sinh" error={editErrors.dateOfBirth?.message}>
+                <Input
+                  type="date"
+                  max={MAX_DOB}
+                  {...registerEdit("dateOfBirth")}
+                />
+              </FormField>
+
+              <FormField label="Giới tính" error={editErrors.gender?.message}>
+                <Select
+                  value={watchEdit("gender") ?? ""}
+                  onValueChange={(v) =>
+                    setEditValue("gender", v as Gender, { shouldValidate: true })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn giới tính" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(GENDER_LABEL).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </FormField>
 
               {/* Reset password toggle */}

@@ -1,4 +1,4 @@
-import type { UserRole } from './auth.types'
+import type { Gender, UserRole } from './auth.types'
 
 export interface PaginatedResult<T> {
   items: T[]
@@ -23,6 +23,8 @@ export interface CreateUserPayload {
   fullName: string
   role: UserRole
   phone: string
+  dateOfBirth?: string
+  gender?: Gender
 }
 
 export interface UpdateUserPayload {
@@ -30,6 +32,8 @@ export interface UpdateUserPayload {
   email?: string
   phone?: string
   isResetPassword?: boolean
+  dateOfBirth?: string
+  gender?: Gender
 }
 
 export interface AdminDashboardStats {
