@@ -26,6 +26,7 @@ export const ROUTES = {
 } as const
 
 export const ROLE_HOME = {
+  super_admin: '/admin/dashboard',
   admin: '/admin/dashboard',
   landlord: '/dashboard',
   tenant: '/tenant/dashboard',

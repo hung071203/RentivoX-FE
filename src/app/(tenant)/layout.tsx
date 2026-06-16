@@ -3,7 +3,7 @@ import TenantLayout from '@/components/layouts/TenantLayout'
 
 export default function TenantGroupLayout({ children }: { children: React.ReactNode }) {
   return (
-    <RoleGuard role="tenant">
+    <RoleGuard roles="tenant">
       <TenantLayout>{children}</TenantLayout>
     </RoleGuard>
   )

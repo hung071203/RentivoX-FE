@@ -37,6 +37,7 @@ export const PAYMENT_METHOD_LABEL: Record<string, string> = {
 }
 
 export const USER_ROLE_LABEL: Record<string, string> = {
+  super_admin: 'Quản trị viên cấp cao',
   admin: 'Quản trị viên',
   landlord: 'Chủ trọ',
   tenant: 'Người thuê',

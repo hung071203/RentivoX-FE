@@ -3,7 +3,7 @@ import AdminLayout from '@/components/layouts/AdminLayout'
 
 export default function AdminGroupLayout({ children }: { children: React.ReactNode }) {
   return (
-    <RoleGuard role="admin">
+    <RoleGuard roles={['super_admin', 'admin']}>
       <AdminLayout>{children}</AdminLayout>
     </RoleGuard>
   )

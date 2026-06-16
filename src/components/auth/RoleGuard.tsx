@@ -6,14 +6,15 @@ import { ROLE_HOME } from '@/constants/routes'
 import type { UserRole } from '@/types/auth.types'
 
 interface RoleGuardProps {
-  role: UserRole
+  roles: UserRole | UserRole[]
   children: React.ReactNode
 }
 
-export default function RoleGuard({ role, children }: RoleGuardProps) {
+export default function RoleGuard({ roles, children }: RoleGuardProps) {
   const { user, _hasHydrated } = useAuthStore()
   const router = useRouter()
   const [ready, setReady] = useState(false)
+  const allowed = Array.isArray(roles) ? roles : [roles]
 
   useEffect(() => {
     if (!_hasHydrated) return
@@ -22,12 +23,12 @@ export default function RoleGuard({ role, children }: RoleGuardProps) {
       router.replace('/login')
       return
     }
-    if (user.role !== role) {
+    if (!allowed.includes(user.role)) {
       router.replace(ROLE_HOME[user.role])
       return
     }
     setReady(true)
-  }, [user, role, router, _hasHydrated])
+  }, [user, roles, router, _hasHydrated])
 
   if (!ready) return null
   return <>{children}</>
