@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore } from '@/stores/auth.store'
-import { useLogout } from '@/hooks/useAuth'
+import { useLogout, useMe } from '@/hooks/useAuth'
 
 function getInitials(name: string | undefined): string {
   if (!name) return 'U'
@@ -22,6 +22,7 @@ function getInitials(name: string | undefined): string {
 export default function Header() {
   const { user } = useAuthStore()
   const logout = useLogout()
+  useMe()
 
   return (
     <header className="h-14 border-b border-sidebar-border bg-background flex items-center justify-end px-6 shrink-0">

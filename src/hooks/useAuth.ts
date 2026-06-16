@@ -1,4 +1,5 @@
 'use client'
+import { useEffect } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -25,11 +26,21 @@ export function useLogin() {
 }
 
 export function useMe() {
-  return useQuery({
+  const { setAuth } = useAuthStore()
+
+  const query = useQuery({
     queryKey: ['me'],
     queryFn: authApi.me,
-    staleTime: Infinity,
+    refetchInterval: 5000,
   })
+
+  useEffect(() => {
+    if (query.data) {
+      setAuth({ id: query.data.id, email: query.data.email, fullName: query.data.fullName, role: query.data.role })
+    }
+  }, [query.data])
+
+  return query
 }
 
 export function useLogout() {
