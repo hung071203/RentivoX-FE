@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { authApi } from '@/apis/auth.api'
+import { profileApi } from '@/apis/profile.api'
 import { useAuthStore } from '@/stores/auth.store'
 import { setToken, removeToken } from '@/utils/auth'
 import { getErrorMessage } from '@/utils/error'
@@ -30,7 +31,7 @@ export function useMe() {
 
   const query = useQuery({
     queryKey: ['me'],
-    queryFn: authApi.me,
+    queryFn: profileApi.getProfile,
     refetchInterval: 5000,
   })
 

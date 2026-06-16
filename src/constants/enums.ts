@@ -42,3 +42,9 @@ export const USER_ROLE_LABEL: Record<string, string> = {
   landlord: 'Chủ trọ',
   tenant: 'Người thuê',
 }
+
+export const GENDER_LABEL: Record<string, string> = {
+  male: 'Nam',
+  female: 'Nữ',
+  other: 'Khác',
+}

@@ -1,4 +1,5 @@
 export type UserRole = 'super_admin' | 'admin' | 'landlord' | 'tenant'
+export type Gender = 'male' | 'female' | 'other'
 
 export interface User {
   id: string
@@ -7,6 +8,8 @@ export interface User {
   fullName: string
   phone: string
   isActive: boolean
+  dateOfBirth: string | null
+  gender: Gender | null
   createdAt: string
   updatedAt: string
 }

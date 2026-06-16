@@ -1,5 +1,6 @@
 'use client'
-import { LogOut, ChevronDown } from 'lucide-react'
+import { LogOut, ChevronDown, UserCircle } from 'lucide-react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLogout, useMe } from '@/hooks/useAuth'
+import { ROUTES } from '@/constants/routes'
 
 function getInitials(name: string | undefined): string {
   if (!name) return 'U'
@@ -43,6 +45,13 @@ export default function Header() {
             <p className="text-sm font-medium leading-none">{user?.fullName}</p>
             <p className="text-xs text-muted-foreground mt-1 truncate">{user?.email}</p>
           </div>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href={ROUTES.PROFILE} className="cursor-pointer">
+              <UserCircle className="h-4 w-4 mr-2" />
+              Hồ sơ cá nhân
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={logout}
