@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,7 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useGetProfile, useUpdateProfile, useUpdateEmail, useUpdatePassword } from '@/hooks/useProfile'
+import {
+  useGetProfile,
+  useUpdateProfile,
+  useSendOtpForEmailChange,
+  useUpdateEmail,
+  useUpdatePassword,
+} from '@/hooks/useProfile'
 import type { User } from '@/types/auth.types'
 import dayjs from 'dayjs'
 
@@ -41,9 +47,12 @@ const profileSchema = z.object({
   gender: z.enum(['male', 'female', 'other', '']).optional(),
 })
 
-const emailSchema = z.object({
-  email: z.string().email('Email không hợp lệ'),
-  currentPassword: z.string().min(1, 'Vui lòng nhập mật khẩu hiện tại'),
+const sendOtpSchema = z.object({
+  newEmail: z.string().email('Email không hợp lệ'),
+})
+
+const verifyOtpSchema = z.object({
+  otp: z.string().regex(/^\d{6}$/, 'Mã OTP gồm 6 chữ số'),
 })
 
 const passwordSchema = z
@@ -64,7 +73,8 @@ const passwordSchema = z
   })
 
 type ProfileForm = z.infer<typeof profileSchema>
-type EmailForm = z.infer<typeof emailSchema>
+type SendOtpForm = z.infer<typeof sendOtpSchema>
+type VerifyOtpForm = z.infer<typeof verifyOtpSchema>
 type PasswordForm = z.infer<typeof passwordSchema>
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────────
@@ -94,14 +104,112 @@ function PwInput({ show, onToggle, ...props }: React.ComponentProps<typeof Input
   )
 }
 
+// ─── Email tab — 2-step OTP flow ──────────────────────────────────────────────────
+
+function EmailTab() {
+  const [step, setStep] = useState<'send' | 'verify'>('send')
+  const [pendingEmail, setPendingEmail] = useState('')
+
+  const sendOtp = useSendOtpForEmailChange()
+  const updateEmail = useUpdateEmail()
+
+  const sendForm = useForm<SendOtpForm>({ resolver: zodResolver(sendOtpSchema) })
+  const verifyForm = useForm<VerifyOtpForm>({ resolver: zodResolver(verifyOtpSchema) })
+
+  function onSendOtp(form: SendOtpForm) {
+    sendOtp.mutate(form, {
+      onSuccess: () => {
+        setPendingEmail(form.newEmail)
+        setStep('verify')
+      },
+    })
+  }
+
+  function onVerifyOtp(form: VerifyOtpForm) {
+    updateEmail.mutate(
+      { newEmail: pendingEmail, otp: form.otp },
+      {
+        onSuccess: () => {
+          setStep('send')
+          sendForm.reset()
+          verifyForm.reset()
+        },
+      },
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base">Cập nhật email</CardTitle>
+        <CardDescription>
+          {step === 'send'
+            ? 'Nhập email mới — mã OTP sẽ được gửi đến email đó để xác nhận'
+            : `Mã OTP đã gửi đến ${pendingEmail} (hiệu lực 10 phút)`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {/* Step 1: nhập email mới */}
+        {step === 'send' && (
+          <form onSubmit={sendForm.handleSubmit(onSendOtp)} className="space-y-5">
+            <FormField label="Email mới" error={sendForm.formState.errors.newEmail?.message}>
+              <Input
+                type="email"
+                placeholder="email@example.com"
+                {...sendForm.register('newEmail')}
+              />
+            </FormField>
+
+            <div className="flex justify-end pt-1">
+              <Button type="submit" disabled={sendOtp.isPending}>
+                {sendOtp.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                Gửi mã OTP
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {/* Step 2: nhập OTP */}
+        {step === 'verify' && (
+          <form onSubmit={verifyForm.handleSubmit(onVerifyOtp)} className="space-y-5">
+            <FormField label="Mã OTP (6 chữ số)" error={verifyForm.formState.errors.otp?.message}>
+              <Input
+                placeholder="000000"
+                maxLength={6}
+                className="tracking-[0.3em] font-mono"
+                {...verifyForm.register('otp')}
+              />
+            </FormField>
+
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+                onClick={() => {
+                  setStep('send')
+                  verifyForm.reset()
+                }}
+              >
+                Đổi email khác / Gửi lại
+              </button>
+              <Button type="submit" disabled={updateEmail.isPending}>
+                {updateEmail.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                Xác nhận
+              </Button>
+            </div>
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // ─── Inner form component — chỉ render sau khi có profile ────────────────────────
 
 function ProfileContent({ profile }: { profile: User }) {
   const updateProfile = useUpdateProfile()
-  const updateEmail = useUpdateEmail()
   const updatePassword = useUpdatePassword()
 
-  const [showEmailPw, setShowEmailPw] = useState(false)
   const [showCurrentPw, setShowCurrentPw] = useState(false)
   const [showNewPw, setShowNewPw] = useState(false)
   const [showConfirmPw, setShowConfirmPw] = useState(false)
@@ -122,16 +230,6 @@ function ProfileContent({ profile }: { profile: User }) {
   })
 
   const {
-    register: regEmail,
-    handleSubmit: handleEmailSubmit,
-    reset: resetEmail,
-    formState: { errors: emailErrors },
-  } = useForm<EmailForm>({
-    resolver: zodResolver(emailSchema),
-    defaultValues: { email: profile.email, currentPassword: '' },
-  })
-
-  const {
     register: regPassword,
     handleSubmit: handlePasswordSubmit,
     reset: resetPassword,
@@ -144,12 +242,6 @@ function ProfileContent({ profile }: { profile: User }) {
       phone: form.phone || undefined,
       dateOfBirth: form.dateOfBirth || undefined,
       gender: (form.gender || null) as any,
-    })
-  }
-
-  function onEmailSubmit(form: EmailForm) {
-    updateEmail.mutate(form, {
-      onSuccess: () => resetEmail({ email: form.email, currentPassword: '' }),
     })
   }
 
@@ -217,36 +309,9 @@ function ProfileContent({ profile }: { profile: User }) {
         </Card>
       </TabsContent>
 
-      {/* ── Tab 2: Cập nhật email ─────────────────────────────────────────── */}
+      {/* ── Tab 2: Cập nhật email (OTP flow) ─────────────────────────────── */}
       <TabsContent value="email" className="mt-4">
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">Cập nhật email</CardTitle>
-            <CardDescription>Nhập email mới và xác nhận bằng mật khẩu hiện tại</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleEmailSubmit(onEmailSubmit)} className="space-y-5">
-              <FormField label="Email mới" error={emailErrors.email?.message}>
-                <Input type="email" {...regEmail('email')} placeholder="email@example.com" />
-              </FormField>
-
-              <FormField label="Mật khẩu hiện tại" error={emailErrors.currentPassword?.message}>
-                <PwInput
-                  show={showEmailPw}
-                  onToggle={() => setShowEmailPw((v) => !v)}
-                  {...regEmail('currentPassword')}
-                  placeholder="Xác nhận bằng mật khẩu"
-                />
-              </FormField>
-
-              <div className="flex justify-end pt-1">
-                <Button type="submit" disabled={updateEmail.isPending}>
-                  {updateEmail.isPending ? 'Đang lưu...' : 'Cập nhật email'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        <EmailTab />
       </TabsContent>
 
       {/* ── Tab 3: Đổi mật khẩu ──────────────────────────────────────────── */}

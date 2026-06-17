@@ -4,13 +4,14 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2 } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useLogin } from '@/hooks/useAuth'
 import { useAuthStore } from '@/stores/auth.store'
-import { ROLE_HOME } from '@/constants/routes'
+import { ROLE_HOME, ROUTES } from '@/constants/routes'
 
 const schema = z.object({
   email: z.string().email('Email không hợp lệ'),
@@ -63,9 +64,14 @@ export default function LoginForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password" className="text-[15px] font-medium">
-          Mật khẩu
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password" className="text-[15px] font-medium">
+            Mật khẩu
+          </Label>
+          <Link href={ROUTES.FORGOT_PASSWORD} className="text-sm text-primary hover:underline">
+            Quên mật khẩu?
+          </Link>
+        </div>
         <Input
           id="password"
           type="password"

@@ -54,3 +54,23 @@ export function useLogout() {
     router.push('/login')
   }
 }
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: authApi.forgotPassword,
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+}
+
+export function useResetPassword() {
+  const router = useRouter()
+
+  return useMutation({
+    mutationFn: authApi.resetPassword,
+    onSuccess: () => {
+      toast.success('Đặt lại mật khẩu thành công. Vui lòng đăng nhập.')
+      router.push('/login')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+}

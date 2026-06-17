@@ -7,9 +7,13 @@ export interface UpdateProfilePayload {
   gender?: Gender | null
 }
 
+export interface SendOtpEmailPayload {
+  newEmail: string
+}
+
 export interface UpdateEmailPayload {
-  email: string
-  currentPassword: string
+  newEmail: string
+  otp: string
 }
 
 export interface UpdatePasswordPayload {

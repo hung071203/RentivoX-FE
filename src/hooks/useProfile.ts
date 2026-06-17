@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { profileApi } from '@/apis/profile.api'
 import { useAuthStore } from '@/stores/auth.store'
 import { getErrorMessage } from '@/utils/error'
-import type { UpdateProfilePayload, UpdateEmailPayload, UpdatePasswordPayload } from '@/types/profile.types'
+import type { UpdateProfilePayload, SendOtpEmailPayload, UpdateEmailPayload, UpdatePasswordPayload } from '@/types/profile.types'
 
 export function useGetProfile() {
   return useQuery({
@@ -24,6 +24,13 @@ export function useUpdateProfile() {
       setAuth({ id: updated.id, email: updated.email, fullName: updated.fullName, role: updated.role })
       toast.success('Cập nhật thông tin thành công')
     },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+}
+
+export function useSendOtpForEmailChange() {
+  return useMutation({
+    mutationFn: (data: SendOtpEmailPayload) => profileApi.sendOtpForEmailChange(data),
     onError: (err) => toast.error(getErrorMessage(err)),
   })
 }
