@@ -1,28 +1,44 @@
+export type Gender = 'male' | 'female' | 'other'
+
 export interface Tenant {
   id: string
-  user_id: string | null
-  landlord_id: string
-  full_name: string
-  phone: string
-  email: string
-  id_card_number: string
-  id_card_issued_date: string
-  id_card_issued_place: string
-  date_of_birth: string
-  permanent_address: string
-  created_at: string
-  updated_at: string
+  userId: string | null
+  landlordId: string
+  fullName: string
+  phone: string | null
+  email: string | null
+  idCardNumber: string | null
+  idCardIssuedDate: string | null
+  idCardIssuedPlace: string | null
+  dateOfBirth: string | null
+  gender: Gender | null
+  permanentAddress: string | null
+  idCardFrontUrl: string | null
+  idCardBackUrl: string | null
+  createdAt: string
+  updatedAt: string
 }
 
-export interface CreateTenantDto {
-  full_name: string
-  phone: string
+export interface CreateTenantPayload {
+  fullName: string
   email?: string
-  id_card_number: string
-  id_card_issued_date: string
-  id_card_issued_place: string
-  date_of_birth: string
-  permanent_address: string
+  phone?: string
+  idCardNumber?: string
+  idCardIssuedDate?: string
+  idCardIssuedPlace?: string
+  dateOfBirth?: string
+  gender?: Gender
+  permanentAddress?: string
+  createAccount?: boolean
 }
 
-export type UpdateTenantDto = Partial<CreateTenantDto>
+export type UpdateTenantPayload = Partial<CreateTenantPayload>
+
+export interface GetTenantsParams {
+  page?: number
+  limit?: number
+  search?: string
+  hasAccount?: boolean
+  orderBy?: string
+  orderDirection?: 'ASC' | 'DESC'
+}
