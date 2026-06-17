@@ -177,18 +177,36 @@ function IdCardUpload({
   isPending: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   return (
     <div className="space-y-1.5">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <div
-        className="relative border-2 border-dashed rounded-lg overflow-hidden cursor-pointer hover:border-primary/50 transition-colors bg-muted/30"
+        className="relative border-2 border-dashed rounded-lg overflow-hidden bg-muted/30"
         style={{ aspectRatio: "16/10" }}
-        onClick={() => inputRef.current?.click()}
       >
         {url ? (
-          <img src={url} alt={label} className="w-full h-full object-cover" />
+          <>
+            <img
+              src={url}
+              alt={label}
+              className="w-full h-full object-cover cursor-zoom-in"
+              onClick={() => setPreviewOpen(true)}
+            />
+            <button
+              type="button"
+              className="absolute bottom-1.5 right-1.5 bg-background/80 hover:bg-background rounded-md px-2 py-1 text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors border border-border/50"
+              onClick={() => inputRef.current?.click()}
+            >
+              <Camera className="h-3 w-3" />
+              Đổi ảnh
+            </button>
+          </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full gap-1.5 text-muted-foreground">
+          <div
+            className="flex flex-col items-center justify-center h-full gap-1.5 text-muted-foreground cursor-pointer hover:border-primary/50 transition-colors"
+            onClick={() => inputRef.current?.click()}
+          >
             <Camera className="h-6 w-6" />
             <span className="text-xs">Nhấn để tải ảnh</span>
           </div>
@@ -210,6 +228,14 @@ function IdCardUpload({
           e.target.value = "";
         }}
       />
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-3xl p-2 gap-0" aria-describedby={undefined}>
+          <DialogHeader className="sr-only">
+            <DialogTitle>{label}</DialogTitle>
+          </DialogHeader>
+          <img src={url ?? ""} alt={label} className="w-full h-auto rounded-md" />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
