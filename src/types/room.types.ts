@@ -1,36 +1,62 @@
+import type { Property } from './property.types'
+
 export type RoomType = 'shared' | 'private'
 export type RoomStatus = 'available' | 'occupied' | 'maintenance' | 'reserved'
 
 export interface Room {
   id: string
-  property_id: string
-  room_number: string
-  floor: number
-  room_type: RoomType
-  area_m2: number
-  base_price: number
-  max_occupants: number
-  has_private_wc: boolean
-  has_kitchen: boolean
-  has_ac: boolean
+  propertyId: string
+  property?: Pick<Property, 'id' | 'name'>
+  roomNumber: string
+  floor: number | null
+  roomType: RoomType
+  areaM2: number | null
+  basePrice: number
+  maxOccupants: number | null
+  hasPrivateWc: boolean
+  hasKitchen: boolean
+  hasAc: boolean
   status: RoomStatus
-  notes: string
-  created_at: string
-  updated_at: string
+  notes: string | null
+  createdAt: string
+  updatedAt: string
 }
 
-export interface CreateRoomDto {
-  property_id: string
-  room_number: string
-  floor: number
-  room_type: RoomType
-  area_m2: number
-  base_price: number
-  max_occupants: number
-  has_private_wc?: boolean
-  has_kitchen?: boolean
-  has_ac?: boolean
+export interface CreateRoomPayload {
+  propertyId: string
+  roomNumber: string
+  floor?: number | null
+  roomType: RoomType
+  areaM2?: number | null
+  basePrice: number
+  maxOccupants?: number | null
+  hasPrivateWc?: boolean
+  hasKitchen?: boolean
+  hasAc?: boolean
   notes?: string
 }
 
-export type UpdateRoomDto = Partial<Omit<CreateRoomDto, 'property_id'>>
+export interface UpdateRoomPayload {
+  roomNumber?: string
+  floor?: number | null
+  roomType?: RoomType
+  areaM2?: number | null
+  basePrice?: number
+  maxOccupants?: number | null
+  hasPrivateWc?: boolean
+  hasKitchen?: boolean
+  hasAc?: boolean
+  notes?: string
+  status?: RoomStatus
+}
+
+export interface GetRoomsParams {
+  page?: number
+  limit?: number
+  search?: string
+  propertyId?: string
+  status?: RoomStatus
+  roomType?: RoomType
+  orderBy?: string
+  orderDirection?: 'ASC' | 'DESC'
+}
