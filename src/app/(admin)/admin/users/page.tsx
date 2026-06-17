@@ -325,10 +325,7 @@ export default function AdminUsersPage() {
       dateOfBirth: form.dateOfBirth || undefined,
       gender: form.gender,
     };
-    updateUser.mutate(
-      { id: editUser.id, payload },
-      { onSuccess: closeEdit },
-    );
+    updateUser.mutate({ id: editUser.id, payload }, { onSuccess: closeEdit });
   }
 
   function handleDelete() {
@@ -379,11 +376,9 @@ export default function AdminUsersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả role</SelectItem>
-                {isSuperAdmin && (
-                  <SelectItem value="super_admin">
-                    Quản trị viên cấp cao
-                  </SelectItem>
-                )}
+                <SelectItem value="super_admin">
+                  Quản trị viên cấp cao
+                </SelectItem>
                 <SelectItem value="admin">Quản trị viên</SelectItem>
                 <SelectItem value="landlord">Chủ trọ</SelectItem>
                 <SelectItem value="tenant">Người thuê</SelectItem>
@@ -618,7 +613,11 @@ export default function AdminUsersPage() {
 
               <FormField label="Role" error={createErrors.role?.message}>
                 <Select
-                  onValueChange={(v) => setCreateValue("role", v as CreateForm["role"], { shouldDirty: true })}
+                  onValueChange={(v) =>
+                    setCreateValue("role", v as CreateForm["role"], {
+                      shouldDirty: true,
+                    })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Chọn role" />
@@ -632,7 +631,10 @@ export default function AdminUsersPage() {
                 </Select>
               </FormField>
 
-              <FormField label="Ngày sinh" error={createErrors.dateOfBirth?.message}>
+              <FormField
+                label="Ngày sinh"
+                error={createErrors.dateOfBirth?.message}
+              >
                 <Input
                   type="date"
                   max={MAX_DOB}
@@ -644,7 +646,9 @@ export default function AdminUsersPage() {
                 <Select
                   value={watchCreate("gender") ?? ""}
                   onValueChange={(v) =>
-                    setCreateValue("gender", v as Gender, { shouldValidate: true })
+                    setCreateValue("gender", v as Gender, {
+                      shouldValidate: true,
+                    })
                   }
                 >
                   <SelectTrigger>
@@ -708,7 +712,10 @@ export default function AdminUsersPage() {
                 <Input {...registerEdit("phone")} />
               </FormField>
 
-              <FormField label="Ngày sinh" error={editErrors.dateOfBirth?.message}>
+              <FormField
+                label="Ngày sinh"
+                error={editErrors.dateOfBirth?.message}
+              >
                 <Input
                   type="date"
                   max={MAX_DOB}
@@ -720,7 +727,9 @@ export default function AdminUsersPage() {
                 <Select
                   value={watchEdit("gender") ?? ""}
                   onValueChange={(v) =>
-                    setEditValue("gender", v as Gender, { shouldValidate: true })
+                    setEditValue("gender", v as Gender, {
+                      shouldValidate: true,
+                    })
                   }
                 >
                   <SelectTrigger>

@@ -92,10 +92,16 @@ function FormField({ label, error, children }: { label: string; error?: string; 
 function PwInput({ show, onToggle, ...props }: React.ComponentProps<typeof Input> & { show: boolean; onToggle: () => void }) {
   return (
     <div className="relative">
-      <Input type={show ? 'text' : 'password'} className="pr-10" {...props} />
+      <Input
+        type={show ? 'text' : 'password'}
+        autoComplete="new-password"
+        className="pr-10 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden"
+        {...props}
+      />
       <button
         type="button"
         onClick={onToggle}
+        tabIndex={-1}
         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
       >
         {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
