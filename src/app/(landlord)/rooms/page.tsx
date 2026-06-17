@@ -70,6 +70,7 @@ import type {
   CreateRoomPayload,
   UpdateRoomPayload,
 } from "@/types/room.types";
+import { SortableHead } from "@/components/common/SortableHead";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -234,6 +235,10 @@ export default function RoomsPage() {
   function handleSearch(value: string) {
     setSearch(value);
     setParams((p) => ({ ...p, page: 1, search: value || undefined }));
+  }
+
+  function handleSort(field: string, direction: "ASC" | "DESC" | undefined) {
+    setParams((p) => ({ ...p, page: 1, orderBy: direction ? field : undefined, orderDirection: direction }));
   }
 
   function openEdit(room: Room) {
@@ -416,12 +421,12 @@ export default function RoomsPage() {
             </colgroup>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-t">
-                <TableHead className="pl-6">Phòng số</TableHead>
+                <SortableHead label="Phòng số" field="roomNumber" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} className="pl-6" />
                 <TableHead>Nhà trọ</TableHead>
                 <TableHead>Loại phòng</TableHead>
                 <TableHead>Trạng thái</TableHead>
-                <TableHead>Giá thuê</TableHead>
-                <TableHead>Diện tích</TableHead>
+                <SortableHead label="Giá thuê" field="basePrice" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
+                <SortableHead label="Diện tích" field="areaM2" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
                 <TableHead>Tiện ích</TableHead>
                 <TableHead className="pr-4 text-right">Hành động</TableHead>
               </TableRow>

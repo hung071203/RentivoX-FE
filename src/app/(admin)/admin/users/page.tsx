@@ -72,6 +72,7 @@ import type {
   CreateUserPayload,
   UpdateUserPayload,
 } from "@/types/admin.types";
+import { SortableHead } from "@/components/common/SortableHead";
 
 // ─── Validation ────────────────────────────────────────────────────────────────
 
@@ -263,6 +264,10 @@ export default function AdminUsersPage() {
     setParams((p) => ({ ...p, page: 1, search: value || undefined }));
   }
 
+  function handleSort(field: string, direction: "ASC" | "DESC" | undefined) {
+    setParams((p) => ({ ...p, page: 1, orderBy: direction ? field : undefined, orderDirection: direction }));
+  }
+
   function handleRoleFilter(value: string) {
     setRoleFilter(value);
     setParams((p) => ({
@@ -410,12 +415,12 @@ export default function AdminUsersPage() {
             </colgroup>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-t">
-                <TableHead className="pl-6">Họ tên</TableHead>
+                <SortableHead label="Họ tên" field="fullName" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} className="pl-6" />
                 <TableHead>Email</TableHead>
                 <TableHead>Số điện thoại</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Trạng thái</TableHead>
-                <TableHead>Ngày tạo</TableHead>
+                <SortableHead label="Ngày tạo" field="createdAt" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
                 <TableHead className="pr-4 text-right">Hành động</TableHead>
               </TableRow>
             </TableHeader>

@@ -1,19 +1,30 @@
 import api from '@/lib/axios'
-import type { Service, CreateServiceDto, UpdateServiceDto } from '@/types/service.types'
+import type { PaginatedResult } from '@/types/admin.types'
+import type {
+  Service,
+  CreateServicePayload,
+  UpdateServicePayload,
+  GetServicesParams,
+} from '@/types/service.types'
 
 export const servicesApi = {
-  getAll: (propertyId?: string) =>
-    api.get<Service[]>('/services', { params: { property_id: propertyId } }).then((r) => r.data),
+  getAll(params: GetServicesParams) {
+    return api.get<PaginatedResult<Service>>('/landlord/services', { params }).then(r => r.data)
+  },
 
-  getById: (id: string) =>
-    api.get<Service>(`/services/${id}`).then((r) => r.data),
+  getOne(id: string) {
+    return api.get<Service>(`/landlord/services/${id}`).then(r => r.data)
+  },
 
-  create: (data: CreateServiceDto) =>
-    api.post<Service>('/services', data).then((r) => r.data),
+  create(payload: CreateServicePayload) {
+    return api.post<Service>('/landlord/services', payload).then(r => r.data)
+  },
 
-  update: (id: string, data: UpdateServiceDto) =>
-    api.patch<Service>(`/services/${id}`, data).then((r) => r.data),
+  update(id: string, payload: UpdateServicePayload) {
+    return api.patch<Service>(`/landlord/services/${id}`, payload).then(r => r.data)
+  },
 
-  delete: (id: string) =>
-    api.delete(`/services/${id}`).then((r) => r.data),
+  remove(id: string) {
+    return api.delete(`/landlord/services/${id}`)
+  },
 }

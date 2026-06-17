@@ -70,6 +70,7 @@ import type {
   CreateTenantPayload,
   UpdateTenantPayload,
 } from "@/types/tenant.types";
+import { SortableHead } from "@/components/common/SortableHead";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -291,6 +292,10 @@ export default function TenantsPage() {
     setParams((p) => ({ ...p, page: 1, search: value || undefined }));
   }
 
+  function handleSort(field: string, direction: "ASC" | "DESC" | undefined) {
+    setParams((p) => ({ ...p, page: 1, orderBy: direction ? field : undefined, orderDirection: direction }));
+  }
+
   const emptyForm: TenantForm = { fullName: "", email: "", phone: "", dateOfBirth: "", gender: "", idCardNumber: "", idCardIssuedDate: "", idCardIssuedPlace: "", permanentAddress: "", createAccount: false };
 
   function openCreate() {
@@ -443,7 +448,7 @@ export default function TenantsPage() {
             </colgroup>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-t">
-                <TableHead className="pl-6">Họ tên</TableHead>
+                <SortableHead label="Họ tên" field="fullName" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} className="pl-6" />
                 <TableHead>Số điện thoại</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Số CCCD</TableHead>

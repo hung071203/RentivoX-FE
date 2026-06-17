@@ -14,6 +14,7 @@ import {
   Trash2,
   MapPin,
   DoorOpen,
+  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +60,7 @@ import {
   AddressSelector,
   type AddressValue,
 } from "@/components/common/AddressSelector";
+import { SortableHead } from "@/components/common/SortableHead";
 import { formatDate } from "@/utils/format";
 import type {
   CreatePropertyPayload,
@@ -166,6 +168,10 @@ export default function PropertiesPage() {
     setParams((p) => ({ ...p, page: 1, search: value || undefined }));
   }
 
+  function handleSort(field: string, direction: "ASC" | "DESC" | undefined) {
+    setParams((p) => ({ ...p, page: 1, orderBy: direction ? field : undefined, orderDirection: direction }));
+  }
+
   function openEdit(property: Property) {
     setEditProperty(property);
     setEditAddress({
@@ -266,9 +272,9 @@ export default function PropertiesPage() {
             </colgroup>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-t">
-                <TableHead className="pl-6">Tên nhà trọ</TableHead>
+                <SortableHead label="Tên nhà trọ" field="name" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} className="pl-6" />
                 <TableHead>Địa chỉ</TableHead>
-                <TableHead>Ngày tạo</TableHead>
+                <SortableHead label="Ngày tạo" field="createdAt" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
                 <TableHead className="pr-4 text-right">Hành động</TableHead>
               </TableRow>
             </TableHeader>
@@ -333,6 +339,12 @@ export default function PropertiesPage() {
                         >
                           <DoorOpen className="h-4 w-4 mr-2 text-muted-foreground" />
                           Xem phòng
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/services?propertyId=${property.id}`)}
+                        >
+                          <Wrench className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Xem dịch vụ
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => openEdit(property)}>
