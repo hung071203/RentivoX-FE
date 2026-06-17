@@ -1,17 +1,25 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { propertiesApi } from '@/apis/properties.api'
-import type { CreatePropertyDto, UpdatePropertyDto } from '@/types/property.types'
+import { getErrorMessage } from '@/utils/error'
+import type {
+  CreatePropertyPayload,
+  GetPropertiesParams,
+  UpdatePropertyPayload,
+} from '@/types/property.types'
 
-export function useProperties() {
+const KEY = 'landlord-properties'
+
+export function useProperties(params?: GetPropertiesParams) {
   return useQuery({
-    queryKey: ['properties'],
-    queryFn: propertiesApi.getAll,
+    queryKey: [KEY, params],
+    queryFn: () => propertiesApi.getAll(params),
   })
 }
 
 export function useProperty(id: string) {
   return useQuery({
-    queryKey: ['properties', id],
+    queryKey: [KEY, id],
     queryFn: () => propertiesApi.getById(id),
     enabled: !!id,
   })
@@ -20,17 +28,25 @@ export function useProperty(id: string) {
 export function useCreateProperty() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: CreatePropertyDto) => propertiesApi.create(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['properties'] }),
+    mutationFn: (data: CreatePropertyPayload) => propertiesApi.create(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [KEY] })
+      toast.success('Tạo nhà trọ thành công')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 }
 
 export function useUpdateProperty() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdatePropertyDto }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdatePropertyPayload }) =>
       propertiesApi.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['properties'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [KEY] })
+      toast.success('Cập nhật nhà trọ thành công')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 }
 
@@ -38,6 +54,10 @@ export function useDeleteProperty() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => propertiesApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['properties'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [KEY] })
+      toast.success('Đã xóa nhà trọ')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 }

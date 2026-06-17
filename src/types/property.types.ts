@@ -1,21 +1,29 @@
 export interface Property {
   id: string
-  landlord_id: string
+  landlordId: string
   name: string
   address: string
-  ward: string
-  district: string
-  province: string
-  created_at: string
-  updated_at: string
+  ward: string | null
+  district: string | null
+  province: string | null
+  createdAt: string
+  updatedAt: string
 }
 
-export interface CreatePropertyDto {
+export interface CreatePropertyPayload {
   name: string
   address: string
-  ward: string
-  district: string
-  province: string
+  ward?: string
+  district?: string
+  province?: string
 }
 
-export type UpdatePropertyDto = Partial<CreatePropertyDto>
+export type UpdatePropertyPayload = Partial<CreatePropertyPayload>
+
+export interface GetPropertiesParams {
+  page?: number
+  limit?: number
+  search?: string
+  orderBy?: string
+  orderDirection?: 'ASC' | 'DESC'
+}
