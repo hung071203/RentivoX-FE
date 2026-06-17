@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,6 +13,7 @@ import {
   Pencil,
   Trash2,
   MapPin,
+  DoorOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -126,6 +128,7 @@ function FormField({
 // ─── Page ───────────────────────────────────────────────────────────────────────
 
 export default function PropertiesPage() {
+  const router = useRouter();
   const [params, setParams] = useState<GetPropertiesParams>({
     page: 1,
     limit: 20,
@@ -293,7 +296,11 @@ export default function PropertiesPage() {
                 </TableRow>
               )}
               {data?.items.map((property) => (
-                <TableRow key={property.id}>
+                <TableRow
+                  key={property.id}
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/rooms?propertyId=${property.id}`)}
+                >
                   <TableCell className="pl-6 font-medium truncate">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -306,7 +313,10 @@ export default function PropertiesPage() {
                   <TableCell className="text-muted-foreground text-sm">
                     {formatDate(property.createdAt)}
                   </TableCell>
-                  <TableCell className="pr-4 text-right">
+                  <TableCell
+                    className="pr-4 text-right"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -318,6 +328,13 @@ export default function PropertiesPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/rooms?propertyId=${property.id}`)}
+                        >
+                          <DoorOpen className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Xem phòng
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => openEdit(property)}>
                           <Pencil className="h-4 w-4 mr-2 text-muted-foreground" />
                           Chỉnh sửa

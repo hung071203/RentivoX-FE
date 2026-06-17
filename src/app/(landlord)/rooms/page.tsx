@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,6 +13,9 @@ import {
   Pencil,
   Trash2,
   DoorOpen,
+  Bath,
+  Wind,
+  ChefHat,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -182,7 +186,14 @@ function AmenityCheckbox({ label, checked, onChange }: { label: string; checked:
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function RoomsPage() {
-  const [params, setParams] = useState<GetRoomsParams>({ page: 1, limit: 20 });
+  const searchParams = useSearchParams();
+  const initialPropertyId = searchParams.get("propertyId") ?? undefined;
+
+  const [params, setParams] = useState<GetRoomsParams>({
+    page: 1,
+    limit: 20,
+    propertyId: initialPropertyId,
+  });
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editRoom, setEditRoom] = useState<Room | null>(null);
@@ -240,6 +251,17 @@ export default function RoomsPage() {
       notes: room.notes ?? "",
       status: room.status,
     });
+  }
+
+  function openCreate() {
+    resetC({
+      hasPrivateWc: false,
+      hasKitchen: false,
+      hasAc: false,
+      roomType: "private",
+      propertyId: params.propertyId ?? "",
+    });
+    setCreateOpen(true);
   }
 
   function closeCreate() {
@@ -307,7 +329,7 @@ export default function RoomsPage() {
             Quản lý tất cả phòng trong các dãy nhà trọ
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" />
           Thêm phòng
         </Button>
@@ -383,13 +405,14 @@ export default function RoomsPage() {
         <CardContent className="p-0 mt-4">
           <Table className="table-fixed w-full">
             <colgroup>
-              <col className="w-[12%]" />
-              <col className="w-[20%]" />
-              <col className="w-[14%]" />
-              <col className="w-[15%]" />
-              <col className="w-[18%]" />
               <col className="w-[11%]" />
+              <col className="w-[19%]" />
+              <col className="w-[12%]" />
+              <col className="w-[14%]" />
+              <col className="w-[16%]" />
+              <col className="w-[9%]" />
               <col className="w-[10%]" />
+              <col className="w-[9%]" />
             </colgroup>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-t">
@@ -399,20 +422,21 @@ export default function RoomsPage() {
                 <TableHead>Trạng thái</TableHead>
                 <TableHead>Giá thuê</TableHead>
                 <TableHead>Diện tích</TableHead>
+                <TableHead>Tiện ích</TableHead>
                 <TableHead className="pr-4 text-right">Hành động</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
                     Đang tải...
                   </TableCell>
                 </TableRow>
               )}
               {!isLoading && (data?.items.length ?? 0) === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
                     {search || params.propertyId || params.status || params.roomType
                       ? "Không tìm thấy phòng nào phù hợp"
                       : "Chưa có phòng nào. Hãy thêm phòng đầu tiên!"}
@@ -441,6 +465,28 @@ export default function RoomsPage() {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {room.areaM2 ? `${room.areaM2} m²` : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      {room.hasPrivateWc && (
+                        <span title="WC riêng" className="text-muted-foreground hover:text-foreground transition-colors">
+                          <Bath className="h-4 w-4" />
+                        </span>
+                      )}
+                      {room.hasAc && (
+                        <span title="Điều hòa" className="text-muted-foreground hover:text-foreground transition-colors">
+                          <Wind className="h-4 w-4" />
+                        </span>
+                      )}
+                      {room.hasKitchen && (
+                        <span title="Bếp riêng" className="text-muted-foreground hover:text-foreground transition-colors">
+                          <ChefHat className="h-4 w-4" />
+                        </span>
+                      )}
+                      {!room.hasPrivateWc && !room.hasAc && !room.hasKitchen && (
+                        <span className="text-muted-foreground/40 text-xs">—</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="pr-4 text-right">
                     <DropdownMenu>
