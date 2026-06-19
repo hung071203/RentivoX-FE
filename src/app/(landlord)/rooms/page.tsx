@@ -89,7 +89,7 @@ const createSchema = z.object({
   floor: z.preprocess(toOptionalNum, z.number().int().optional()),
   areaM2: z.preprocess(toOptionalNum, z.number().min(0).optional()),
   basePrice: z.coerce.number({ invalid_type_error: "Giá thuê phải là số" }).int().min(0, "Giá thuê phải >= 0"),
-  maxOccupants: z.preprocess(toOptionalNum, z.number().int().positive().optional()),
+  maxOccupants: z.preprocess(toOptionalNum, z.number({ invalid_type_error: "Sức chứa phải là số" }).int().min(1, "Sức chứa phải >= 1")),
   hasPrivateWc: z.boolean().default(false),
   hasKitchen: z.boolean().default(false),
   hasAc: z.boolean().default(false),
@@ -287,7 +287,7 @@ export default function RoomsPage() {
       basePrice: form.basePrice,
       floor: form.floor ?? undefined,
       areaM2: form.areaM2 ?? undefined,
-      maxOccupants: form.maxOccupants ?? undefined,
+      maxOccupants: form.maxOccupants!,
       hasPrivateWc: form.hasPrivateWc,
       hasKitchen: form.hasKitchen,
       hasAc: form.hasAc,
@@ -642,7 +642,7 @@ export default function RoomsPage() {
                 </FormField>
 
                 {/* Sức chứa */}
-                <FormField label="Sức chứa tối đa" error={errC.maxOccupants?.message}>
+                <FormField label="Sức chứa tối đa" error={errC.maxOccupants?.message} required>
                   <Input {...regC("maxOccupants")} type="number" min={1} placeholder="2" />
                 </FormField>
               </div>

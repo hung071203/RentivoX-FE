@@ -87,7 +87,7 @@ const tenantSchema = z
     phone: z.string(),
     dateOfBirth: z.string(),
     gender: z.enum(["male", "female", "other", ""]),
-    idCardNumber: z.string(),
+    idCardNumber: z.string().min(1, "Số CCCD/CMND không được để trống"),
     idCardIssuedDate: z.string(),
     idCardIssuedPlace: z.string(),
     permanentAddress: z.string(),
@@ -647,7 +647,7 @@ export default function TenantsPage() {
               {/* CCCD */}
               <div className="border-t pt-5 space-y-4">
                 <p className="text-sm font-medium">Giấy tờ tùy thân</p>
-                <FormField label="Số CCCD/CMND" error={errC.idCardNumber?.message}>
+                <FormField label="Số CCCD/CMND" error={errC.idCardNumber?.message} required>
                   <Input {...regC("idCardNumber")} placeholder="012345678901" />
                 </FormField>
                 <div className="grid grid-cols-2 gap-4">
@@ -751,7 +751,7 @@ export default function TenantsPage() {
               {/* CCCD */}
               <div className="border-t pt-5 space-y-4">
                 <p className="text-sm font-medium">Giấy tờ tùy thân</p>
-                <FormField label="Số CCCD/CMND" error={errE.idCardNumber?.message}>
+                <FormField label="Số CCCD/CMND" error={errE.idCardNumber?.message} required>
                   <Input {...regE("idCardNumber")} />
                 </FormField>
                 <div className="grid grid-cols-2 gap-4">

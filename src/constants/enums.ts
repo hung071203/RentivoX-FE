@@ -11,10 +11,15 @@ export const ROOM_STATUS_LABEL: Record<string, string> = {
 }
 
 export const CONTRACT_STATUS_LABEL: Record<string, string> = {
-  pending: 'Chờ duyệt',
   active: 'Đang hiệu lực',
   expired: 'Hết hạn',
   terminated: 'Đã chấm dứt',
+}
+
+export const AMENDMENT_TYPE_LABEL: Record<string, string> = {
+  renewal: 'Gia hạn',
+  price_adjustment: 'Điều chỉnh giá',
+  general: 'Khác',
 }
 
 export const SERVICE_TYPE_LABEL: Record<string, string> = {

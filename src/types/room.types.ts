@@ -29,7 +29,7 @@ export interface CreateRoomPayload {
   roomType: RoomType
   areaM2?: number | null
   basePrice: number
-  maxOccupants?: number | null
+  maxOccupants: number
   hasPrivateWc?: boolean
   hasKitchen?: boolean
   hasAc?: boolean
