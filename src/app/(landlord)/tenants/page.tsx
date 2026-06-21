@@ -100,6 +100,13 @@ const tenantSchema = z
     if (data.createAccount && !data.email) {
       ctx.addIssue({ code: "custom", path: ["email"], message: "Cần có email để tạo tài khoản" });
     }
+    if (data.dateOfBirth) {
+      const min16 = new Date();
+      min16.setFullYear(min16.getFullYear() - 16);
+      if (new Date(data.dateOfBirth) > min16) {
+        ctx.addIssue({ code: "custom", path: ["dateOfBirth"], message: "Khách thuê phải từ 16 tuổi trở lên" });
+      }
+    }
   });
 
 type TenantForm = z.infer<typeof tenantSchema>;
@@ -245,6 +252,7 @@ function IdCardUpload({
 
 export default function TenantsPage() {
   const today = new Date().toISOString().split("T")[0];
+  const maxDob16 = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 16); return d.toISOString().split("T")[0]; })();
 
   const [params, setParams] = useState<GetTenantsParams>({ page: 1, limit: 20 });
   const [search, setSearch] = useState("");
@@ -622,7 +630,7 @@ export default function TenantsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Ngày sinh" error={errC.dateOfBirth?.message}>
-                  <Input {...regC("dateOfBirth")} type="date" max={today} />
+                  <Input {...regC("dateOfBirth")} type="date" max={maxDob16} />
                 </FormField>
                 <FormField label="Giới tính" error={errC.gender?.message}>
                   <Controller
@@ -726,7 +734,7 @@ export default function TenantsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Ngày sinh" error={errE.dateOfBirth?.message}>
-                  <Input {...regE("dateOfBirth")} type="date" max={today} />
+                  <Input {...regE("dateOfBirth")} type="date" max={maxDob16} />
                 </FormField>
                 <FormField label="Giới tính" error={errE.gender?.message}>
                   <Controller

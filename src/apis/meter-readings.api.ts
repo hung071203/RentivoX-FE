@@ -1,15 +1,30 @@
 import api from '@/lib/axios'
-import type { MeterReading, CreateMeterReadingDto } from '@/types/invoice.types'
+import type { PaginatedResult } from '@/types/admin.types'
+import type {
+  MeterReading,
+  GetMeterReadingsParams,
+  CreateMeterReadingPayload,
+  UpdateMeterReadingPayload,
+} from '@/types/meter-reading.types'
 
 export const meterReadingsApi = {
-  getAll: (contractServiceId?: string) =>
-    api
-      .get<MeterReading[]>('/meter-readings', { params: { contract_service_id: contractServiceId } })
-      .then((r) => r.data),
+  getAll(params: GetMeterReadingsParams) {
+    return api.get<PaginatedResult<MeterReading>>('/landlord/meter-readings', { params }).then(r => r.data)
+  },
 
-  create: (data: CreateMeterReadingDto) =>
-    api.post<MeterReading>('/meter-readings', data).then((r) => r.data),
+  getOne(id: string) {
+    return api.get<MeterReading>(`/landlord/meter-readings/${id}`).then(r => r.data)
+  },
 
-  update: (id: string, data: Partial<CreateMeterReadingDto>) =>
-    api.patch<MeterReading>(`/meter-readings/${id}`, data).then((r) => r.data),
+  create(payload: CreateMeterReadingPayload) {
+    return api.post<MeterReading>('/landlord/meter-readings', payload).then(r => r.data)
+  },
+
+  update(id: string, payload: UpdateMeterReadingPayload) {
+    return api.patch<MeterReading>(`/landlord/meter-readings/${id}`, payload).then(r => r.data)
+  },
+
+  remove(id: string) {
+    return api.delete(`/landlord/meter-readings/${id}`)
+  },
 }

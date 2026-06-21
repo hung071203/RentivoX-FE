@@ -15,6 +15,12 @@ export function formatMonth(date: string | Date): string {
   return dayjs(date).format('MM/YYYY')
 }
 
+// "Tháng 6/2026" — dùng cho period (tháng ghi chỉ số), không có leading zero
+export function formatPeriod(date: string | Date): string {
+  const d = dayjs(date)
+  return `Tháng ${d.month() + 1}/${d.year()}`
+}
+
 export function formatDateTime(date: string | Date): string {
   return dayjs(date).format('HH:mm DD/MM/YYYY')
 }

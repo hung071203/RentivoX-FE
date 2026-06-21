@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -63,7 +63,7 @@ import {
 } from "@/components/ui/select"
 import { roomsApi } from "@/apis/rooms.api"
 import { tenantsApi } from "@/apis/tenants.api"
-import { servicesApi } from "@/apis/services.api"
+import roomServicesApi from "@/apis/room-services.api"
 import {
   useContracts,
   useContract,
@@ -109,6 +109,13 @@ const quickTenantSchema = z
     if (data.createAccount && !data.email) {
       ctx.addIssue({ code: "custom", path: ["email"], message: "Cần có email để tạo tài khoản" })
     }
+    if (data.dateOfBirth) {
+      const min16 = new Date()
+      min16.setFullYear(min16.getFullYear() - 16)
+      if (new Date(data.dateOfBirth) > min16) {
+        ctx.addIssue({ code: "custom", path: ["dateOfBirth"], message: "Khách thuê phải từ 16 tuổi trở lên" })
+      }
+    }
   })
 
 type QuickTenantForm = z.infer<typeof quickTenantSchema>
@@ -122,15 +129,6 @@ const emptyQuickTenant: QuickTenantForm = {
 // ─── Local form row types ────────────────────────────────────────────────────
 
 type OccupantRow = { id: string; tenantId: string; isOwner: boolean; movedInDate: string }
-type ServiceRow = {
-  serviceId: string
-  name: string
-  type: string
-  unit: string | null
-  defaultPrice: number
-  price: string
-  selected: boolean
-}
 type AmendServiceRow = {
   contractServiceId?: string
   serviceId?: string
@@ -225,6 +223,7 @@ function AmendmentTypeBadge({ type }: { type: AmendmentType }) {
 
 export default function ContractsPage() {
   const today = new Date().toISOString().split("T")[0]
+  const maxDob16 = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 16); return d.toISOString().split("T")[0] })()
   const searchParams = useSearchParams()
 
   // ── List params ──────────────────────────────────────────────────────────
@@ -328,9 +327,14 @@ export default function ContractsPage() {
     queryFn: () => tenantsApi.getAll({ search: tenantSearch || undefined, limit: 20 }),
   })
 
+  function tenantToOption(t: { id: string; fullName: string; phone?: string; idCardNumber?: string }): ComboboxOption {
+    const parts = [t.phone, t.idCardNumber ? `CCCD: ${t.idCardNumber}` : undefined].filter(Boolean)
+    return { value: t.id, label: t.fullName, sublabel: parts.join(" · ") || undefined }
+  }
+
   function getTenantOptions(occupantId: string): ComboboxOption[] {
     const cached = selectedTenantOptions[occupantId]
-    const items = tenantsData?.items.map((t) => ({ value: t.id, label: t.fullName })) ?? []
+    const items = tenantsData?.items.map(tenantToOption) ?? []
     if (cached && !items.find((i) => i.value === cached.value)) return [cached, ...items]
     return items
   }
@@ -338,10 +342,7 @@ export default function ContractsPage() {
   function handleTenantSelect(occupantId: string, tenantId: string) {
     const tenant = tenantsData?.items.find((t) => t.id === tenantId)
     if (tenant) {
-      setSelectedTenantOptions((prev) => ({
-        ...prev,
-        [occupantId]: { value: tenant.id, label: tenant.fullName },
-      }))
+      setSelectedTenantOptions((prev) => ({ ...prev, [occupantId]: tenantToOption(tenant) }))
     }
     setCOccupants((p) => p.map((o) => (o.id === occupantId ? { ...o, tenantId } : o)))
   }
@@ -349,10 +350,7 @@ export default function ContractsPage() {
   function handleAmendTenantSelect(occupantId: string, tenantId: string) {
     const tenant = tenantsData?.items.find((t) => t.id === tenantId)
     if (tenant) {
-      setSelectedTenantOptions((prev) => ({
-        ...prev,
-        [occupantId]: { value: tenant.id, label: tenant.fullName },
-      }))
+      setSelectedTenantOptions((prev) => ({ ...prev, [occupantId]: tenantToOption(tenant) }))
     }
     setAAddOccupants((p) => p.map((o) => (o.id === occupantId ? { ...o, tenantId } : o)))
   }
@@ -422,44 +420,21 @@ export default function ContractsPage() {
   const [cOccupants, setCOccupants] = useState<OccupantRow[]>([
     { id: "0", tenantId: "", isOwner: true, movedInDate: today },
   ])
-  const [cServiceRows, setCServiceRows] = useState<ServiceRow[]>([])
   const [selectedRoomType, setSelectedRoomType] = useState<string>("")
   const [cErrors, setCErrors] = useState<Record<string, string>>({})
 
-  const { data: propServicesData } = useQuery({
-    queryKey: ["services", { propertyId: selectedRoomPropertyId, isActive: true, limit: 100 }],
-    queryFn: () => servicesApi.getAll({ propertyId: selectedRoomPropertyId, isActive: true, limit: 100 }),
-    enabled: !!selectedRoomPropertyId,
+  // Load room_services for selected room (auto-snapshot for contract creation)
+  const { data: cRoomServicesData } = useQuery({
+    queryKey: ["room-services", cRoom],
+    queryFn: () => roomServicesApi.getAll(cRoom),
+    enabled: !!cRoom,
   })
 
-  const prevRoomId = useRef("")
-  useEffect(() => {
-    if (cRoom !== prevRoomId.current) {
-      prevRoomId.current = cRoom
-      setCServiceRows([])
-    }
-  }, [cRoom])
-
-  useEffect(() => {
-    if (!propServicesData?.items || !cRoom) return
-    setCServiceRows(
-      propServicesData.items.map((s) => ({
-        serviceId: s.id,
-        name: s.name,
-        type: s.type,
-        unit: s.unit,
-        defaultPrice: s.unitPrice,
-        price: String(s.unitPrice),
-        selected: false,
-      }))
-    )
-  }, [propServicesData, cRoom])
-
-  const amendPropertyId = activeContract?.room?.property?.id
-  const { data: amendServicesData } = useQuery({
-    queryKey: ["services", { propertyId: amendPropertyId, isActive: true, limit: 100 }],
-    queryFn: () => servicesApi.getAll({ propertyId: amendPropertyId!, isActive: true, limit: 100 }),
-    enabled: !!amendPropertyId && !!amendContractId,
+  const amendRoomId = activeContract?.roomId
+  const { data: amendRoomServicesData } = useQuery({
+    queryKey: ["room-services", amendRoomId],
+    queryFn: () => roomServicesApi.getAll(amendRoomId!),
+    enabled: !!amendRoomId && !!amendContractId,
   })
 
   // ── Amendment form state ─────────────────────────────────────────────────
@@ -488,19 +463,20 @@ export default function ContractsPage() {
       changed: false,
       isNew: false,
     }))
-    const newServices: AmendServiceRow[] = (amendServicesData?.items ?? [])
-      .filter((s) => !inContractIds.has(s.id))
-      .map((s) => ({
+    // "New" services = in room_services but not yet in contract
+    const newServices: AmendServiceRow[] = (amendRoomServicesData ?? [])
+      .filter((rs) => !inContractIds.has(rs.serviceId))
+      .map((rs) => ({
         contractServiceId: undefined,
-        serviceId: s.id,
-        name: s.name,
+        serviceId: rs.serviceId,
+        name: rs.service?.name ?? "(dịch vụ)",
         currentPrice: null,
-        newPrice: String(s.unitPrice),
+        newPrice: String(rs.unitPrice),
         changed: false,
         isNew: true,
       }))
     setAServiceChanges([...existing, ...newServices])
-  }, [activeContract, amendContractId, amendServicesData])
+  }, [activeContract, amendContractId, amendRoomServicesData])
 
   // ── Terminate form state ─────────────────────────────────────────────────
   const [tDate, setTDate] = useState(today)
@@ -519,8 +495,6 @@ export default function ContractsPage() {
     setSelectedRoomOption(null)
     setSelectedRoomPropertyId("")
     setSelectedRoomType("")
-    setCServiceRows([])
-    prevRoomId.current = ""
     setRoomSearchRaw("")
     setRoomSearch("")
   }
@@ -534,9 +508,7 @@ export default function ContractsPage() {
     setCNotes("")
     setCFile(null)
     setCOccupants([{ id: "0", tenantId: "", isOwner: true, movedInDate: today }])
-    setCServiceRows([])
     setCErrors({})
-    prevRoomId.current = ""
     setRoomSearchRaw("")
     setRoomSearch("")
     setTenantSearchRaw("")
@@ -606,16 +578,10 @@ export default function ContractsPage() {
           setQuickTenantOpen(false)
           if (!quickTenantForId) return
           if (quickTenantForId === "add-occ") {
-            setSelectedTenantOptions((prev) => ({
-              ...prev,
-              "add-occ": { value: newTenant.id, label: newTenant.fullName },
-            }))
+            setSelectedTenantOptions((prev) => ({ ...prev, "add-occ": tenantToOption(newTenant) }))
             setAddOccupantTenantId(newTenant.id)
           } else {
-            setSelectedTenantOptions((prev) => ({
-              ...prev,
-              [quickTenantForId]: { value: newTenant.id, label: newTenant.fullName },
-            }))
+            setSelectedTenantOptions((prev) => ({ ...prev, [quickTenantForId]: tenantToOption(newTenant) }))
             setCOccupants((p) => p.map((o) => (o.id === quickTenantForId ? { ...o, tenantId: newTenant.id } : o)))
           }
         },
@@ -659,9 +625,6 @@ export default function ContractsPage() {
         isOwner: o.isOwner,
         movedInDate: o.movedInDate,
       })),
-      services: cServiceRows
-        .filter((s) => s.selected)
-        .map((s) => ({ serviceId: s.serviceId, unitPrice: Number(s.price) })),
       file: cFile!,
     }
     createContract.mutate(payload, { onSuccess: () => setCreateOpen(false) })
@@ -1213,58 +1176,34 @@ export default function ContractsPage() {
               </div>
             </div>
 
-            {/* Section 3: Dịch vụ (chỉ hiện khi chọn phòng có propertyId) */}
-            {selectedRoomPropertyId && (
-              <div className="space-y-4 border-t pt-6">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Dịch vụ
-                </p>
-                {cServiceRows.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Nhà trọ này chưa có dịch vụ nào đang hoạt động.
+            {/* Section 3: Dịch vụ (từ room_services — read-only, tự động áp dụng) */}
+            {cRoom && (
+              <div className="space-y-3 border-t pt-6">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Dịch vụ phòng
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Được tự động áp dụng từ cấu hình dịch vụ phòng.
+                  </p>
+                </div>
+                {(cRoomServicesData ?? []).length === 0 ? (
+                  <p className="text-sm text-amber-600">
+                    ⚠ Phòng này chưa có dịch vụ nào. Hãy thêm dịch vụ vào phòng trước khi tạo hợp đồng.
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {cServiceRows.map((svc, idx) => (
-                      <div key={svc.serviceId} className="flex items-center gap-3 p-3 border rounded-lg">
-                        <input
-                          type="checkbox"
-                          checked={svc.selected}
-                          onChange={(e) =>
-                            setCServiceRows((p) =>
-                              p.map((s, i) => (i === idx ? { ...s, selected: e.target.checked } : s))
-                            )
-                          }
-                          className="h-4 w-4 rounded border-input accent-primary shrink-0"
-                        />
+                    {(cRoomServicesData ?? []).map((rs) => (
+                      <div key={rs.id} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/20">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{svc.name}</p>
+                          <p className="text-sm font-medium">{rs.service.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {SERVICE_TYPE_LABEL[svc.type]}{svc.unit ? ` — ${svc.unit}` : ""}
+                            {SERVICE_TYPE_LABEL[rs.service.type]}{rs.service.unit ? ` — ${rs.service.unit}` : ""}
                           </p>
                         </div>
-                        {svc.selected ? (
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Label className="text-xs text-muted-foreground whitespace-nowrap">
-                              Đơn giá
-                            </Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              className="h-8 w-28 text-sm"
-                              value={svc.price}
-                              onChange={(e) =>
-                                setCServiceRows((p) =>
-                                  p.map((s, i) => (i === idx ? { ...s, price: e.target.value } : s))
-                                )
-                              }
-                            />
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground shrink-0">
-                            {formatCurrency(svc.defaultPrice)}
-                          </span>
-                        )}
+                        <span className="text-sm font-medium text-muted-foreground shrink-0">
+                          {formatCurrency(Number(rs.unitPrice))}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -1965,7 +1904,7 @@ export default function ContractsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Ngày sinh" error={errQt.dateOfBirth?.message}>
-                  <Input {...regQt("dateOfBirth")} type="date" max={today} />
+                  <Input {...regQt("dateOfBirth")} type="date" max={maxDob16} />
                 </FormField>
                 <FormField label="Giới tính" error={errQt.gender?.message}>
                   <Controller

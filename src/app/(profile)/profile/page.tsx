@@ -40,9 +40,9 @@ const profileSchema = z.object({
     .refine(
       (val) => {
         if (!val) return true
-        return dayjs().diff(dayjs(val), 'year') >= 18
+        return dayjs().diff(dayjs(val), 'year') >= 16
       },
-      { message: 'Phải đủ 18 tuổi' },
+      { message: 'Phải đủ 16 tuổi' },
     ),
   gender: z.enum(['male', 'female', 'other', '']).optional(),
 })

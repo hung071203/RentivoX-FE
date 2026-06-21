@@ -94,11 +94,6 @@ export interface OccupantInput {
   movedInDate: string
 }
 
-export interface ContractServiceInput {
-  serviceId: string
-  unitPrice: number
-}
-
 export interface CreateContractPayload {
   roomId: string
   rentAmount: number
@@ -107,7 +102,6 @@ export interface CreateContractPayload {
   endDate: string
   notes?: string
   occupants: OccupantInput[]
-  services?: ContractServiceInput[]
   file: File
 }
 

@@ -28,7 +28,6 @@ export const contractsApi = {
     fd.append('endDate', data.endDate)
     if (data.notes) fd.append('notes', data.notes)
     fd.append('occupants', JSON.stringify(data.occupants))
-    if (data.services?.length) fd.append('services', JSON.stringify(data.services))
     return api.post<Contract>('/landlord/contracts', fd).then((r) => r.data)
   },
 

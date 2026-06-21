@@ -78,7 +78,7 @@ import { SortableHead } from "@/components/common/SortableHead";
 
 const MAX_DOB = (() => {
   const d = new Date();
-  d.setFullYear(d.getFullYear() - 18);
+  d.setFullYear(d.getFullYear() - 16);
   return d.toISOString().split("T")[0];
 })();
 
@@ -87,7 +87,7 @@ const dobField = z
   .optional()
   .refine(
     (val) => !val || new Date(val) <= new Date(MAX_DOB),
-    "Người dùng phải từ 18 tuổi trở lên",
+    "Người dùng phải từ 16 tuổi trở lên",
   );
 
 const createSchema = z.object({

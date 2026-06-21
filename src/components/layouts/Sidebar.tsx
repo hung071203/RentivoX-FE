@@ -20,7 +20,7 @@ const navItems = [
   { label: 'Khách thuê', href: ROUTES.TENANTS, icon: Users },
   { label: 'Hợp đồng', href: ROUTES.CONTRACTS, icon: FileText },
   { label: 'Dịch vụ', href: ROUTES.SERVICES, icon: Wrench },
-  { label: 'Chỉ số điện/nước', href: ROUTES.METER_READINGS, icon: Zap },
+  { label: 'Chỉ số dịch vụ', href: ROUTES.METER_READINGS, icon: Zap },
   { label: 'Hóa đơn', href: ROUTES.INVOICES, icon: Receipt },
   { label: 'Thanh toán', href: ROUTES.PAYMENTS, icon: Wallet },
 ]

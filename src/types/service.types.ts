@@ -35,6 +35,7 @@ export interface GetServicesParams {
   page?: number
   limit?: number
   propertyId?: string
+  roomId?: string
   type?: ServiceType
   isActive?: boolean
   orderBy?: string

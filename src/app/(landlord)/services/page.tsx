@@ -79,9 +79,6 @@ const createSchema = z.object({
 });
 
 const editSchema = z.object({
-  name: z.string().min(1, "Tên dịch vụ không được để trống"),
-  type: z.enum(["metered", "fixed"] as const),
-  unit: z.string().optional(),
   unitPrice: z.coerce.number({ invalid_type_error: "Đơn giá phải là số" }).int().min(0, "Đơn giá phải >= 0"),
   isActive: z.boolean(),
 });
@@ -216,16 +213,14 @@ export default function ServicesPage() {
     register: regE,
     handleSubmit: submitE,
     control: controlE,
-    watch: watchE,
     reset: resetE,
     formState: { errors: errE },
   } = useForm<EditForm>({
     resolver: zodResolver(editSchema),
-    defaultValues: { name: "", type: "fixed", unit: "", unitPrice: 0, isActive: true },
+    defaultValues: { unitPrice: 0, isActive: true },
   });
 
   const typeC = watchC("type");
-  const typeE = watchE("type");
 
   function handleSort(field: string, direction: "ASC" | "DESC" | undefined) {
     setParams((p) => ({ ...p, page: 1, orderBy: direction ? field : undefined, orderDirection: direction }));
@@ -234,9 +229,6 @@ export default function ServicesPage() {
   function openEdit(service: Service) {
     setEditService(service);
     resetE({
-      name: service.name,
-      type: service.type,
-      unit: service.unit ?? "",
       unitPrice: Number(service.unitPrice),
       isActive: service.isActive,
     });
@@ -261,11 +253,8 @@ export default function ServicesPage() {
   function onEditSubmit(data: EditForm) {
     if (!editService) return;
     const payload: UpdateServicePayload = {
-      name: data.name,
-      type: data.type,
       unitPrice: data.unitPrice,
       isActive: data.isActive,
-      unit: data.type === "metered" ? (data.unit || undefined) : undefined,
     };
     updateService.mutate({ id: editService.id, payload }, {
       onSuccess: () => setEditService(null),
@@ -562,39 +551,30 @@ export default function ServicesPage() {
           </SheetHeader>
           <form onSubmit={submitE(onEditSubmit)} className="flex flex-col flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
-              <FormField label="Nhà trọ">
-                <Input value={editService?.property?.name ?? "—"} disabled className="bg-muted/30" />
-              </FormField>
+              {/* Read-only info */}
+              <div className="rounded-lg bg-muted/40 px-4 py-3 text-sm space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Nhà trọ</span>
+                  <span className="font-medium">{editService?.property?.name ?? "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tên dịch vụ</span>
+                  <span className="font-medium">{editService?.name ?? "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Loại</span>
+                  <span className="font-medium">
+                    {editService ? (editService.type === "metered" ? "Đo đếm" : "Cố định") : "—"}
+                    {editService?.unit ? ` (${editService.unit})` : ""}
+                  </span>
+                </div>
+              </div>
 
-              <FormField label="Tên dịch vụ" error={errE.name?.message} required>
-                <Input {...regE("name")} className={errE.name ? "border-destructive" : ""} />
-              </FormField>
-
-              <FormField label="Loại dịch vụ" error={errE.type?.message} required>
-                <Controller
-                  name="type"
-                  control={controlE}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fixed">Cố định (phí hàng tháng)</SelectItem>
-                        <SelectItem value="metered">Đo đếm (theo chỉ số)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </FormField>
-
-              {typeE === "metered" && (
-                <FormField label="Đơn vị đo" error={errE.unit?.message}>
-                  <Input placeholder="VD: kWh, m³" {...regE("unit")} />
-                </FormField>
-              )}
-
-              <FormField label={typeE === "metered" ? "Đơn giá (VND / đơn vị)" : "Đơn giá (VND / tháng)"} error={errE.unitPrice?.message} required>
+              <FormField
+                label={editService?.type === "metered" ? "Đơn giá (VND / đơn vị)" : "Đơn giá (VND / tháng)"}
+                error={errE.unitPrice?.message}
+                required
+              >
                 <Input type="number" min={0} step={1000} {...regE("unitPrice")} className={errE.unitPrice ? "border-destructive" : ""} />
               </FormField>
 

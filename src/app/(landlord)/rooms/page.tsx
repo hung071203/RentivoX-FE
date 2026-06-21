@@ -18,6 +18,9 @@ import {
   ChefHat,
   FileText,
   Users,
+  Wrench,
+  X,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,8 +65,10 @@ import {
 } from "@/components/ui/select";
 import { useRooms, useCreateRoom, useUpdateRoom, useDeleteRoom } from "@/hooks/useRooms";
 import { useProperties } from "@/hooks/useProperties";
+import { useServices } from "@/hooks/useServices";
+import { useRoomServices, useCreateRoomService, useUpdateRoomService, useDeleteRoomService } from "@/hooks/useRoomServices";
 import { formatCurrency } from "@/utils/format";
-import { ROOM_TYPE_LABEL, ROOM_STATUS_LABEL } from "@/constants/enums";
+import { ROOM_TYPE_LABEL, ROOM_STATUS_LABEL, SERVICE_TYPE_LABEL } from "@/constants/enums";
 import type {
   Room,
   RoomStatus,
@@ -186,6 +191,159 @@ function AmenityCheckbox({ label, checked, onChange }: { label: string; checked:
   );
 }
 
+// ─── Room Services Sheet ─────────────────────────────────────────────────────
+
+function RoomServicesSheet({ room, open, onClose }: { room: Room | null; open: boolean; onClose: () => void }) {
+  const roomId = room?.id ?? null;
+  const { data: roomServices, isLoading } = useRoomServices(roomId);
+  const { data: servicesData } = useServices({ propertyId: room?.propertyId, limit: 100, isActive: true });
+  const createRs = useCreateRoomService(roomId ?? "");
+  const updateRs = useUpdateRoomService(roomId ?? "");
+  const deleteRs = useDeleteRoomService(roomId ?? "");
+
+  const [addServiceId, setAddServiceId] = useState("");
+  const [addUnitPrice, setAddUnitPrice] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editPrice, setEditPrice] = useState("");
+
+  const allServices = servicesData?.items ?? [];
+  const addedIds = new Set((roomServices ?? []).map((rs) => rs.serviceId));
+  const available = allServices.filter((s) => !addedIds.has(s.id));
+
+  function handleAdd() {
+    if (!addServiceId || addUnitPrice === "") return;
+    createRs.mutate(
+      { serviceId: addServiceId, unitPrice: Number(addUnitPrice) },
+      { onSuccess: () => { setAddServiceId(""); setAddUnitPrice(""); } },
+    );
+  }
+
+  function handleEditStart(id: string, price: number) {
+    setEditId(id);
+    setEditPrice(String(price));
+  }
+
+  function handleSaveEdit() {
+    if (!editId) return;
+    updateRs.mutate({ id: editId, data: { unitPrice: Number(editPrice) } }, { onSuccess: () => setEditId(null) });
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => { if (!o) { setEditId(null); onClose(); } }}>
+      <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+        <SheetHeader className="px-6 py-5 border-b">
+          <SheetTitle>Dịch vụ — Phòng {room?.roomNumber}</SheetTitle>
+          <SheetDescription className="truncate">{room?.property?.name}</SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+          {/* Danh sách dịch vụ hiện có */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dịch vụ đã gắn</p>
+            {isLoading && <p className="text-sm text-muted-foreground">Đang tải...</p>}
+            {!isLoading && (roomServices ?? []).length === 0 && (
+              <p className="text-sm text-muted-foreground">Chưa có dịch vụ nào</p>
+            )}
+            {(roomServices ?? []).map((rs) => (
+              <div key={rs.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{rs.service.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {SERVICE_TYPE_LABEL[rs.service.type]}
+                    {rs.service.unit ? ` · ${rs.service.unit}` : ""}
+                  </p>
+                </div>
+                {editId === rs.id ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <input
+                      type="number"
+                      min={0}
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(e.target.value)}
+                      className="w-28 h-8 rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    />
+                    <Button size="sm" className="h-8 w-8 p-0" onClick={handleSaveEdit} disabled={updateRs.isPending}>
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setEditId(null)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-sm font-medium">{formatCurrency(Number(rs.unitPrice))}</span>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleEditStart(rs.id, Number(rs.unitPrice))}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                      onClick={() => deleteRs.mutate(rs.id)}
+                      disabled={deleteRs.isPending}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Thêm dịch vụ */}
+          <div className="border-t pt-5 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Thêm dịch vụ</p>
+            {available.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {allServices.length === 0
+                  ? "Nhà trọ chưa có dịch vụ nào. Vào trang Dịch vụ để thêm."
+                  : "Tất cả dịch vụ đã được gắn vào phòng này."}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <Select value={addServiceId} onValueChange={setAddServiceId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn dịch vụ..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {available.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name} — {SERVICE_TYPE_LABEL[s.type]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Đơn giá (VND)"
+                      value={addUnitPrice}
+                      onChange={(e) => setAddUnitPrice(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    onClick={handleAdd}
+                    disabled={!addServiceId || addUnitPrice === "" || createRs.isPending}
+                  >
+                    <Plus className="h-4 w-4 mr-1.5" />
+                    Thêm
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t bg-muted/30">
+          <Button variant="outline" className="w-full" onClick={onClose}>Đóng</Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function RoomsPage() {
@@ -203,6 +361,7 @@ export default function RoomsPage() {
   const [editRoom, setEditRoom] = useState<Room | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detailRoom, setDetailRoom] = useState<Room | null>(null);
+  const [servicesRoom, setServicesRoom] = useState<Room | null>(null);
 
   const { data, isLoading } = useRooms(params);
   const { data: propertiesData } = useProperties({ limit: 100 });
@@ -230,6 +389,7 @@ export default function RoomsPage() {
     handleSubmit: submitE,
     control: controlE,
     reset: resetE,
+    setError: setErrE,
     formState: { errors: errE },
   } = useForm<EditForm>({
     resolver: zodResolver(editSchema),
@@ -302,6 +462,13 @@ export default function RoomsPage() {
 
   function onEditSubmit(form: EditForm) {
     if (!editRoom) return;
+    const currentOccupants = editRoom.occupantCount ?? 0;
+    if (form.maxOccupants !== undefined && form.maxOccupants < currentOccupants) {
+      setErrE("maxOccupants", {
+        message: `Không được nhỏ hơn số người đang ở hiện tại (${currentOccupants})`,
+      });
+      return;
+    }
     const payload: UpdateRoomPayload = {
       roomNumber: form.roomNumber,
       roomType: form.roomType,
@@ -508,6 +675,10 @@ export default function RoomsPage() {
                         <DropdownMenuItem onClick={() => router.push(`/contracts?roomId=${room.id}`)}>
                           <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
                           Xem hợp đồng
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setServicesRoom(room)}>
+                          <Wrench className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Dịch vụ phòng
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => openEdit(room)}>
@@ -784,7 +955,15 @@ export default function RoomsPage() {
 
                 {/* Sức chứa */}
                 <FormField label="Sức chứa tối đa" error={errE.maxOccupants?.message}>
-                  <Input {...regE("maxOccupants")} type="number" min={1} />
+                  <Input
+                    {...regE("maxOccupants")}
+                    type="number"
+                    min={editRoom?.occupantCount ?? 1}
+                    className={errE.maxOccupants ? "border-destructive" : ""}
+                  />
+                  {(editRoom?.occupantCount ?? 0) > 0 && !errE.maxOccupants && (
+                    <p className="text-xs text-muted-foreground">Hiện có {editRoom!.occupantCount} người đang ở</p>
+                  )}
                 </FormField>
               </div>
 
@@ -927,6 +1106,14 @@ export default function RoomsPage() {
               Xem hợp đồng phòng này
             </Button>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { const r = detailRoom; setDetailRoom(null); setServicesRoom(r); }}
+              >
+                <Wrench className="h-4 w-4 mr-2" />
+                Dịch vụ phòng
+              </Button>
               <Button variant="outline" className="flex-1" onClick={() => { setDetailRoom(null); if (detailRoom) openEdit(detailRoom); }}>
                 <Pencil className="h-4 w-4 mr-2" />
                 Chỉnh sửa
@@ -935,6 +1122,13 @@ export default function RoomsPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* ── Room Services Sheet ─────────────────────────────────────────────── */}
+      <RoomServicesSheet
+        room={servicesRoom}
+        open={!!servicesRoom}
+        onClose={() => setServicesRoom(null)}
+      />
 
       {/* ── Delete Dialog ────────────────────────────────────────────────────── */}
       <Dialog open={!!deleteId} onOpenChange={(o) => { if (!o) setDeleteId(null); }}>
