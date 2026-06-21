@@ -96,6 +96,31 @@ const TYPE_STYLE: Record<ServiceType, { bg: string; text: string; ring: string }
   fixed: { bg: "bg-teal-50", text: "text-teal-700", ring: "ring-teal-200" },
 };
 
+const PROPERTY_COLORS = [
+  { bg: "bg-indigo-50", text: "text-indigo-700", ring: "ring-indigo-200" },
+  { bg: "bg-violet-50", text: "text-violet-700", ring: "ring-violet-200" },
+  { bg: "bg-amber-50", text: "text-amber-700", ring: "ring-amber-200" },
+  { bg: "bg-rose-50", text: "text-rose-700", ring: "ring-rose-200" },
+  { bg: "bg-cyan-50", text: "text-cyan-700", ring: "ring-cyan-200" },
+  { bg: "bg-lime-50", text: "text-lime-700", ring: "ring-lime-200" },
+];
+
+function usePropertyColorMap(properties: { id: string }[]) {
+  const map = new Map<string, (typeof PROPERTY_COLORS)[number]>();
+  properties.forEach((p, i) => {
+    map.set(p.id, PROPERTY_COLORS[i % PROPERTY_COLORS.length]);
+  });
+  return map;
+}
+
+function PropertyBadge({ name, colorStyle }: { name: string; colorStyle: (typeof PROPERTY_COLORS)[number] }) {
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 max-w-full truncate ${colorStyle.bg} ${colorStyle.text} ${colorStyle.ring}`}>
+      {name}
+    </span>
+  );
+}
+
 function TypeBadge({ type }: { type: ServiceType }) {
   const s = TYPE_STYLE[type];
   return (
@@ -255,6 +280,7 @@ export default function ServicesPage() {
   }
 
   const properties = propertiesData?.items ?? [];
+  const propertyColorMap = usePropertyColorMap(properties);
 
   return (
     <div className="space-y-6">
@@ -365,8 +391,13 @@ export default function ServicesPage() {
                       <span className="truncate">{service.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground truncate">
-                    {service.property?.name ?? "—"}
+                  <TableCell>
+                    {service.property
+                      ? <PropertyBadge
+                          name={service.property.name}
+                          colorStyle={propertyColorMap.get(service.property.id) ?? PROPERTY_COLORS[0]}
+                        />
+                      : <span className="text-sm text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell>
                     <TypeBadge type={service.type} />
