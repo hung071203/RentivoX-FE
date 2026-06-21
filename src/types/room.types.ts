@@ -18,6 +18,7 @@ export interface Room {
   hasAc: boolean
   status: RoomStatus
   notes: string | null
+  occupantCount?: number
   createdAt: string
   updatedAt: string
 }

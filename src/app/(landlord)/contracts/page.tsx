@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -224,11 +225,25 @@ function AmendmentTypeBadge({ type }: { type: AmendmentType }) {
 
 export default function ContractsPage() {
   const today = new Date().toISOString().split("T")[0]
+  const searchParams = useSearchParams()
 
   // ── List params ──────────────────────────────────────────────────────────
-  const [params, setParams] = useState<GetContractsParams>({ page: 1, limit: 20 })
+  const [params, setParams] = useState<GetContractsParams>({
+    page: 1,
+    limit: 20,
+    roomId: searchParams.get("roomId") ?? undefined,
+    propertyId: searchParams.get("propertyId") ?? undefined,
+  })
   const [search, setSearch] = useState("")
   const { data, isLoading } = useContracts(params)
+
+  // Fetch room data when filter has a roomId (dùng để pre-populate create form)
+  const { data: filterRoom } = useQuery({
+    queryKey: ["room", params.roomId],
+    queryFn: () => roomsApi.getById(params.roomId!),
+    enabled: !!params.roomId,
+    staleTime: 30_000,
+  })
 
   // ── Panel state ──────────────────────────────────────────────────────────
   const [createOpen, setCreateOpen] = useState(false)
@@ -512,8 +527,6 @@ export default function ContractsPage() {
 
   // Create
   function openCreate() {
-    setCProperty("")
-    setCRoom("")
     setCRent("")
     setCDeposit("")
     setCStart(today)
@@ -522,16 +535,36 @@ export default function ContractsPage() {
     setCFile(null)
     setCOccupants([{ id: "0", tenantId: "", isOwner: true, movedInDate: today }])
     setCServiceRows([])
-    setSelectedRoomType("")
     setCErrors({})
     prevRoomId.current = ""
     setRoomSearchRaw("")
     setRoomSearch("")
-    setSelectedRoomOption(null)
-    setSelectedRoomPropertyId("")
     setTenantSearchRaw("")
     setTenantSearch("")
     setSelectedTenantOptions({})
+
+    // Pre-select phòng nếu đang filter theo roomId
+    if (filterRoom) {
+      setCProperty(filterRoom.propertyId)
+      setCRoom(filterRoom.id)
+      setSelectedRoomPropertyId(filterRoom.propertyId)
+      setSelectedRoomType(filterRoom.roomType)
+      setSelectedRoomOption({
+        value: filterRoom.id,
+        label: `Phòng ${filterRoom.roomNumber}`,
+        sublabel: filterRoom.property?.name ?? "",
+      })
+      if (filterRoom.roomType === "shared") {
+        setCOccupants([{ id: "0", tenantId: "", isOwner: true, movedInDate: today }])
+      }
+    } else {
+      setCProperty("")
+      setCRoom("")
+      setSelectedRoomOption(null)
+      setSelectedRoomPropertyId("")
+      setSelectedRoomType("")
+    }
+
     setCreateOpen(true)
   }
 
@@ -1534,10 +1567,13 @@ export default function ContractsPage() {
                         <div key={am.id} className="p-3 border rounded-lg space-y-2">
                           <div className="flex items-start justify-between gap-2">
                             <div className="space-y-1">
-                              <AmendmentTypeBadge type={am.amendmentType} />
-                              <p className="text-xs text-muted-foreground">
-                                Hiệu lực: {formatDate(am.effectiveDate)}
-                              </p>
+                              <p className="text-sm font-medium">{am.title}</p>
+                              <div className="flex items-center gap-2">
+                                <AmendmentTypeBadge type={am.amendmentType} />
+                                <span className="text-xs text-muted-foreground">
+                                  Hiệu lực: {formatDate(am.effectiveDate)}
+                                </span>
+                              </div>
                             </div>
                             {am.isApplied ? (
                               <span className="text-xs text-emerald-600 font-medium shrink-0">

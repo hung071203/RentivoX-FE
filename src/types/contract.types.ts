@@ -55,6 +55,7 @@ export interface ContractAmendment {
   documentId: string
   document?: ContractDocument
   amendmentType: AmendmentType
+  title: string
   effectiveDate: string
   isApplied: boolean
   newRentAmount: number | null

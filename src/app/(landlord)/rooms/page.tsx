@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,6 +16,8 @@ import {
   Bath,
   Wind,
   ChefHat,
+  FileText,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -188,6 +190,7 @@ function AmenityCheckbox({ label, checked, onChange }: { label: string; checked:
 
 export default function RoomsPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initialPropertyId = searchParams.get("propertyId") ?? undefined;
 
   const [params, setParams] = useState<GetRoomsParams>({
@@ -199,6 +202,7 @@ export default function RoomsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editRoom, setEditRoom] = useState<Room | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [detailRoom, setDetailRoom] = useState<Room | null>(null);
 
   const { data, isLoading } = useRooms(params);
   const { data: propertiesData } = useProperties({ limit: 100 });
@@ -449,7 +453,7 @@ export default function RoomsPage() {
                 </TableRow>
               )}
               {data?.items.map((room) => (
-                <TableRow key={room.id}>
+                <TableRow key={room.id} className="cursor-pointer" onClick={() => setDetailRoom(room)}>
                   <TableCell className="pl-6 font-medium">
                     <div className="flex items-center gap-2">
                       <DoorOpen className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -493,14 +497,19 @@ export default function RoomsPage() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="pr-4 text-right">
+                  <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => router.push(`/contracts?roomId=${room.id}`)}>
+                          <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Xem hợp đồng
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => openEdit(room)}>
                           <Pencil className="h-4 w-4 mr-2 text-muted-foreground" />
                           Chỉnh sửa
@@ -824,6 +833,106 @@ export default function RoomsPage() {
               </Button>
             </div>
           </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Detail Sheet ────────────────────────────────────────────────────── */}
+      <Sheet open={!!detailRoom} onOpenChange={(o) => { if (!o) setDetailRoom(null); }}>
+        <SheetContent className="w-full sm:max-w-sm flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 py-5 border-b">
+            <SheetTitle>
+              Phòng {detailRoom?.roomNumber}
+            </SheetTitle>
+            <SheetDescription className="truncate">{detailRoom?.property?.name}</SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+            {/* Badges */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {detailRoom && <StatusBadge status={detailRoom.status} />}
+              {detailRoom && <TypeBadge type={detailRoom.roomType} />}
+            </div>
+
+            {/* Thông tin chính */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Thông tin</p>
+              <div className="grid grid-cols-2 gap-y-3 text-sm">
+                {detailRoom?.floor != null && (
+                  <>
+                    <span className="text-muted-foreground">Tầng</span>
+                    <span className="font-medium">{detailRoom.floor}</span>
+                  </>
+                )}
+                {detailRoom?.areaM2 != null && (
+                  <>
+                    <span className="text-muted-foreground">Diện tích</span>
+                    <span className="font-medium">{detailRoom.areaM2} m²</span>
+                  </>
+                )}
+                <span className="text-muted-foreground">Giá thuê</span>
+                <span className="font-medium">{detailRoom ? formatCurrency(Number(detailRoom.basePrice)) : "—"}</span>
+                <span className="text-muted-foreground">Người ở</span>
+                <span className="font-medium flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                  {detailRoom?.occupantCount ?? 0}
+                  {detailRoom?.maxOccupants != null && (
+                    <span className="text-muted-foreground font-normal">/ {detailRoom.maxOccupants}</span>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {/* Tiện nghi */}
+            {detailRoom && (detailRoom.hasPrivateWc || detailRoom.hasKitchen || detailRoom.hasAc) && (
+              <div className="space-y-2 border-t pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tiện nghi</p>
+                <div className="flex flex-wrap gap-3 text-sm">
+                  {detailRoom.hasPrivateWc && (
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Bath className="h-4 w-4" /> WC riêng
+                    </span>
+                  )}
+                  {detailRoom.hasKitchen && (
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <ChefHat className="h-4 w-4" /> Bếp riêng
+                    </span>
+                  )}
+                  {detailRoom.hasAc && (
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Wind className="h-4 w-4" /> Điều hòa
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Ghi chú */}
+            {detailRoom?.notes && (
+              <div className="space-y-1.5 border-t pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ghi chú</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{detailRoom.notes}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="px-6 py-4 border-t flex flex-col gap-2 bg-muted/30">
+            <Button
+              className="w-full"
+              onClick={() => {
+                setDetailRoom(null);
+                router.push(`/contracts?roomId=${detailRoom?.id}`);
+              }}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Xem hợp đồng phòng này
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => { setDetailRoom(null); if (detailRoom) openEdit(detailRoom); }}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Chỉnh sửa
+              </Button>
+            </div>
+          </div>
         </SheetContent>
       </Sheet>
 

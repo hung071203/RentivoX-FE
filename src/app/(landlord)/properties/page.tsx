@@ -15,6 +15,7 @@ import {
   MapPin,
   DoorOpen,
   Wrench,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -333,7 +334,7 @@ export default function PropertiesPage() {
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem
                           onClick={() => router.push(`/rooms?propertyId=${property.id}`)}
                         >
@@ -345,6 +346,12 @@ export default function PropertiesPage() {
                         >
                           <Wrench className="h-4 w-4 mr-2 text-muted-foreground" />
                           Xem dịch vụ
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/contracts?propertyId=${property.id}`)}
+                        >
+                          <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Xem hợp đồng
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => openEdit(property)}>
