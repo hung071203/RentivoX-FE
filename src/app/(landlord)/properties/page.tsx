@@ -16,6 +16,8 @@ import {
   DoorOpen,
   Wrench,
   FileText,
+  Check,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,18 +59,33 @@ import {
   useUpdateProperty,
   useDeleteProperty,
 } from "@/hooks/useProperties";
+import { useServices, useCreateService, useUpdateService, useDeleteService } from "@/hooks/useServices";
 import {
   AddressSelector,
   type AddressValue,
 } from "@/components/common/AddressSelector";
 import { SortableHead } from "@/components/common/SortableHead";
-import { formatDate } from "@/utils/format";
+import { formatCurrency, formatDate } from "@/utils/format";
+import { SERVICE_TYPE_LABEL } from "@/constants/enums";
 import type {
   CreatePropertyPayload,
   GetPropertiesParams,
   Property,
   UpdatePropertyPayload,
 } from "@/types/property.types";
+import type {
+  Service,
+  ServiceType,
+  CreateServicePayload,
+  UpdateServicePayload,
+} from "@/types/service.types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // ─── Validation ────────────────────────────────────────────────────────────────
 
@@ -128,6 +145,250 @@ function FormField({
   );
 }
 
+// ─── Service Badges ───────────────────────────────────────────────────────────
+
+const TYPE_STYLE: Record<ServiceType, { bg: string; text: string; ring: string }> = {
+  metered: { bg: "bg-blue-50", text: "text-blue-700", ring: "ring-blue-200" },
+  fixed: { bg: "bg-teal-50", text: "text-teal-700", ring: "ring-teal-200" },
+};
+
+function TypeBadge({ type }: { type: ServiceType }) {
+  const s = TYPE_STYLE[type];
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${s.bg} ${s.text} ring-1 ${s.ring}`}>
+      {SERVICE_TYPE_LABEL[type]}
+    </span>
+  );
+}
+
+function ActiveBadge({ isActive }: { isActive: boolean }) {
+  return isActive ? null : (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 ring-1 ring-red-200">
+      Ngừng dùng
+    </span>
+  );
+}
+
+// ─── Property Services Sheet ──────────────────────────────────────────────────
+
+function PropertyServicesSheet({ property, open, onClose }: { property: Property | null; open: boolean; onClose: () => void }) {
+  const propertyId = property?.id ?? null;
+  const { data, isLoading } = useServices({ propertyId: propertyId ?? undefined, limit: 100 });
+  const createService = useCreateService();
+  const updateService = useUpdateService();
+  const deleteService = useDeleteService();
+
+  const [addName, setAddName] = useState("");
+  const [addType, setAddType] = useState<ServiceType>("fixed");
+  const [addUnit, setAddUnit] = useState("");
+  const [addUnitPrice, setAddUnitPrice] = useState("");
+
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editPrice, setEditPrice] = useState("");
+  const [editActive, setEditActive] = useState(true);
+
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const services = data?.items ?? [];
+
+  function handleAdd() {
+    if (!propertyId || !addName.trim() || addUnitPrice === "") return;
+    const payload: CreateServicePayload = {
+      propertyId,
+      name: addName.trim(),
+      type: addType,
+      unitPrice: Number(addUnitPrice),
+      ...(addType === "metered" && addUnit.trim() ? { unit: addUnit.trim() } : {}),
+    };
+    createService.mutate(payload, {
+      onSuccess: () => {
+        setAddName("");
+        setAddType("fixed");
+        setAddUnit("");
+        setAddUnitPrice("");
+      },
+    });
+  }
+
+  function handleEditStart(service: Service) {
+    setEditId(service.id);
+    setEditPrice(String(Number(service.unitPrice)));
+    setEditActive(service.isActive);
+  }
+
+  function handleSaveEdit() {
+    if (!editId) return;
+    const payload: UpdateServicePayload = { unitPrice: Number(editPrice), isActive: editActive };
+    updateService.mutate({ id: editId, payload }, { onSuccess: () => setEditId(null) });
+  }
+
+  function handleDelete() {
+    if (!deleteId) return;
+    deleteService.mutate(deleteId, { onSuccess: () => setDeleteId(null) });
+  }
+
+  return (
+    <>
+      <Sheet
+        open={open}
+        onOpenChange={(o) => {
+          if (!o) { setEditId(null); onClose(); }
+        }}
+      >
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 py-5 border-b">
+            <SheetTitle>Dịch vụ — {property?.name}</SheetTitle>
+            <SheetDescription>Quản lý dịch vụ cho dãy nhà trọ này</SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+            {/* Danh sách dịch vụ hiện có */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Dịch vụ hiện có {services.length > 0 ? `(${services.length})` : ""}
+              </p>
+              {isLoading && <p className="text-sm text-muted-foreground">Đang tải...</p>}
+              {!isLoading && services.length === 0 && (
+                <p className="text-sm text-muted-foreground">Chưa có dịch vụ nào. Hãy thêm dịch vụ bên dưới.</p>
+              )}
+              {services.map((service) => (
+                <div key={service.id} className="rounded-lg border bg-card">
+                  {/* Info row — luôn hiển thị */}
+                  <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium truncate">{service.name}</p>
+                        <TypeBadge type={service.type} />
+                        <ActiveBadge isActive={service.isActive} />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatCurrency(Number(service.unitPrice))}
+                        {service.unit ? `/${service.unit}` : "/tháng"}
+                      </p>
+                    </div>
+                    {editId !== service.id && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleEditStart(service)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteId(service.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  {/* Edit controls — chỉ hiện khi đang sửa */}
+                  {editId === service.id && (
+                    <div className="flex items-center gap-2 px-3 pb-3 pt-2 border-t">
+                      <input
+                        type="number"
+                        min={0}
+                        value={editPrice}
+                        onChange={(e) => setEditPrice(e.target.value)}
+                        placeholder="Đơn giá"
+                        className="flex-1 min-w-0 h-8 rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                      <Select value={editActive ? "true" : "false"} onValueChange={(v) => setEditActive(v === "true")}>
+                        <SelectTrigger className="h-8 w-[90px] text-xs shrink-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="true">Đang dùng</SelectItem>
+                          <SelectItem value="false">Ngừng dùng</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" className="h-8 w-8 p-0 shrink-0" onClick={handleSaveEdit} disabled={updateService.isPending}>
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 shrink-0" onClick={() => setEditId(null)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Thêm dịch vụ mới */}
+            <div className="border-t pt-5 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Thêm dịch vụ</p>
+              <input
+                type="text"
+                placeholder="Tên dịch vụ (VD: Điện, Nước, Gửi xe...)"
+                value={addName}
+                onChange={(e) => setAddName(e.target.value)}
+                className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <Select value={addType} onValueChange={(v) => setAddType(v as ServiceType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fixed">Cố định (hàng tháng)</SelectItem>
+                  <SelectItem value="metered">Đo đếm (theo chỉ số)</SelectItem>
+                </SelectContent>
+              </Select>
+              {addType === "metered" && (
+                <input
+                  type="text"
+                  placeholder="Đơn vị đo (VD: kWh, m³)"
+                  value={addUnit}
+                  onChange={(e) => setAddUnit(e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              )}
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Đơn giá (VND)"
+                  value={addUnitPrice}
+                  onChange={(e) => setAddUnitPrice(e.target.value)}
+                  className="flex-1 h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+                <Button
+                  onClick={handleAdd}
+                  disabled={!addName.trim() || addUnitPrice === "" || createService.isPending}
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Thêm
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-6 py-4 border-t bg-muted/30">
+            <Button variant="outline" className="w-full" onClick={onClose}>Đóng</Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Delete confirm */}
+      <Dialog open={!!deleteId} onOpenChange={(o) => { if (!o) setDeleteId(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Xóa dịch vụ</DialogTitle>
+            <DialogDescription>
+              Dịch vụ sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteId(null)}>Hủy</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteService.isPending}>
+              {deleteService.isPending ? "Đang xóa..." : "Xóa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // ─── Page ───────────────────────────────────────────────────────────────────────
 
 export default function PropertiesPage() {
@@ -140,6 +401,7 @@ export default function PropertiesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editProperty, setEditProperty] = useState<Property | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [servicesProperty, setServicesProperty] = useState<Property | null>(null);
 
   // Address state (province/district/ward) managed outside react-hook-form
   const [createAddress, setCreateAddress] = useState<AddressValue>(EMPTY_ADDRESS);
@@ -342,10 +604,10 @@ export default function PropertiesPage() {
                           Xem phòng
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => router.push(`/services?propertyId=${property.id}`)}
+                          onClick={() => setServicesProperty(property)}
                         >
                           <Wrench className="h-4 w-4 mr-2 text-muted-foreground" />
-                          Xem dịch vụ
+                          Quản lý dịch vụ
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => router.push(`/contracts?propertyId=${property.id}`)}
@@ -555,6 +817,13 @@ export default function PropertiesPage() {
           </form>
         </SheetContent>
       </Sheet>
+
+      {/* ── Property Services Sheet ───────────────────────────────────────────── */}
+      <PropertyServicesSheet
+        property={servicesProperty}
+        open={!!servicesProperty}
+        onClose={() => setServicesProperty(null)}
+      />
 
       {/* ── Delete Confirm Dialog ──────────────────────────────────────────────── */}
       <Dialog

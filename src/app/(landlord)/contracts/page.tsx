@@ -230,10 +230,12 @@ export default function ContractsPage() {
   const [params, setParams] = useState<GetContractsParams>({
     page: 1,
     limit: 20,
+    status: 'active',
     roomId: searchParams.get("roomId") ?? undefined,
     propertyId: searchParams.get("propertyId") ?? undefined,
   })
   const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("active")
   const { data, isLoading } = useContracts(params)
 
   // Fetch room data when filter has a roomId (dùng để pre-populate create form)
@@ -327,7 +329,7 @@ export default function ContractsPage() {
     queryFn: () => tenantsApi.getAll({ search: tenantSearch || undefined, limit: 20 }),
   })
 
-  function tenantToOption(t: { id: string; fullName: string; phone?: string; idCardNumber?: string }): ComboboxOption {
+  function tenantToOption(t: { id: string; fullName: string; phone?: string | null; idCardNumber?: string | null }): ComboboxOption {
     const parts = [t.phone, t.idCardNumber ? `CCCD: ${t.idCardNumber}` : undefined].filter(Boolean)
     return { value: t.id, label: t.fullName, sublabel: parts.join(" · ") || undefined }
   }
@@ -783,14 +785,15 @@ export default function ContractsPage() {
             </Select>
 
             <Select
-              value={params.status ?? "all"}
-              onValueChange={(v) =>
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v)
                 setParams((p) => ({
                   ...p,
                   page: 1,
                   status: v === "all" ? undefined : (v as ContractStatus),
                 }))
-              }
+              }}
             >
               <SelectTrigger className="h-9 w-[160px]">
                 <SelectValue placeholder="Trạng thái" />
