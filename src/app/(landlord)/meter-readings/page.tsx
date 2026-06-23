@@ -71,12 +71,8 @@ const createSchema = z.object({
   roomId: z.string().min(1, "Vui lòng chọn phòng"),
   serviceId: z.string().min(1, "Vui lòng chọn dịch vụ"),
   period: z.string().min(1, "Vui lòng chọn kỳ"),
-  valueStart: z.coerce
-    .number({ invalid_type_error: "Chỉ số phải là số" })
-    .min(0, "Chỉ số không được âm"),
-  valueEnd: z.coerce
-    .number({ invalid_type_error: "Chỉ số phải là số" })
-    .min(0, "Chỉ số không được âm"),
+  valueStart: z.number().min(0, "Chỉ số không được âm"),
+  valueEnd: z.number().min(0, "Chỉ số không được âm"),
 }).refine((d) => d.valueEnd >= d.valueStart, {
   message: "Chỉ số cuối không được nhỏ hơn chỉ số đầu",
   path: ["valueEnd"],
@@ -84,12 +80,8 @@ const createSchema = z.object({
 
 const editSchema = z
   .object({
-    valueStart: z.coerce
-      .number({ invalid_type_error: "Chỉ số phải là số" })
-      .min(0, "Chỉ số không được âm"),
-    valueEnd: z.coerce
-      .number({ invalid_type_error: "Chỉ số phải là số" })
-      .min(0, "Chỉ số không được âm"),
+    valueStart: z.number().min(0, "Chỉ số không được âm"),
+    valueEnd: z.number().min(0, "Chỉ số không được âm"),
   })
   .refine((d) => d.valueEnd >= d.valueStart, {
     message: "Chỉ số cuối không được nhỏ hơn chỉ số đầu",
@@ -677,7 +669,7 @@ export default function MeterReadingsPage() {
                     min={0}
                     step={0.01}
                     placeholder="0"
-                    {...regC("valueStart")}
+                    {...regC("valueStart", { valueAsNumber: true })}
                     className={errC.valueStart ? "border-destructive" : ""}
                   />
                 </FormField>
@@ -687,7 +679,7 @@ export default function MeterReadingsPage() {
                     min={0}
                     step={0.01}
                     placeholder="0"
-                    {...regC("valueEnd")}
+                    {...regC("valueEnd", { valueAsNumber: true })}
                     className={errC.valueEnd ? "border-destructive" : ""}
                   />
                 </FormField>
@@ -739,7 +731,7 @@ export default function MeterReadingsPage() {
                     type="number"
                     min={0}
                     step={0.01}
-                    {...regE("valueStart")}
+                    {...regE("valueStart", { valueAsNumber: true })}
                     className={errE.valueStart ? "border-destructive" : ""}
                   />
                 </FormField>
@@ -748,7 +740,7 @@ export default function MeterReadingsPage() {
                     type="number"
                     min={0}
                     step={0.01}
-                    {...regE("valueEnd")}
+                    {...regE("valueEnd", { valueAsNumber: true })}
                     className={errE.valueEnd ? "border-destructive" : ""}
                   />
                 </FormField>
