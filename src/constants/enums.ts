@@ -28,10 +28,8 @@ export const SERVICE_TYPE_LABEL: Record<string, string> = {
 }
 
 export const INVOICE_STATUS_LABEL: Record<string, string> = {
-  draft: 'Nháp',
-  sent: 'Đã gửi',
+  unpaid: 'Chưa thanh toán',
   paid: 'Đã thanh toán',
-  overdue: 'Quá hạn',
   cancelled: 'Đã huỷ',
 }
 

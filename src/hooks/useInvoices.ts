@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { invoicesApi } from '@/apis/invoices.api'
+import type { GetInvoicesParams, CreateInvoicePayload } from '@/types/invoice.types'
 
-export function useInvoices(contractId?: string) {
+export function useInvoices(params?: GetInvoicesParams) {
   return useQuery({
-    queryKey: ['invoices', { contractId }],
-    queryFn: () => invoicesApi.getAll(contractId),
+    queryKey: ['invoices', params],
+    queryFn: () => invoicesApi.getAll(params),
   })
 }
 
@@ -16,11 +17,18 @@ export function useInvoice(id: string) {
   })
 }
 
-export function useUpdateInvoiceStatus() {
+export function useCreateInvoice() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      invoicesApi.updateStatus(id, status),
+    mutationFn: (payload: CreateInvoicePayload) => invoicesApi.create(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['invoices'] }),
+  })
+}
+
+export function useCancelInvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => invoicesApi.cancel(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['invoices'] }),
   })
 }

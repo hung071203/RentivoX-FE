@@ -1,16 +1,17 @@
 import api from '@/lib/axios'
-import type { Invoice } from '@/types/invoice.types'
+import type { Invoice, GetInvoicesParams, CreateInvoicePayload } from '@/types/invoice.types'
+import type { PaginatedResult } from '@/types/admin.types'
 
 export const invoicesApi = {
-  getAll: (contractId?: string) =>
-    api.get<Invoice[]>('/invoices', { params: { contract_id: contractId } }).then((r) => r.data),
+  getAll: (params?: GetInvoicesParams) =>
+    api.get<PaginatedResult<Invoice>>('/landlord/invoices', { params }).then((r) => r.data),
 
   getById: (id: string) =>
-    api.get<Invoice>(`/invoices/${id}`).then((r) => r.data),
+    api.get<Invoice>(`/landlord/invoices/${id}`).then((r) => r.data),
 
-  updateStatus: (id: string, status: string) =>
-    api.patch<Invoice>(`/invoices/${id}/status`, { status }).then((r) => r.data),
+  create: (payload: CreateInvoicePayload) =>
+    api.post<Invoice>('/landlord/invoices', payload).then((r) => r.data),
 
   cancel: (id: string) =>
-    api.patch<Invoice>(`/invoices/${id}/cancel`).then((r) => r.data),
+    api.patch<Invoice>(`/landlord/invoices/${id}/cancel`).then((r) => r.data),
 }

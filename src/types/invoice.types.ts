@@ -1,44 +1,72 @@
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
+export type InvoiceStatus = 'unpaid' | 'paid' | 'cancelled'
+
+export interface InvoiceItemService {
+  id: string
+  name: string
+  type: string
+  unit: string | null
+}
+
+export interface InvoiceItemContractService {
+  id: string
+  serviceId: string
+  service?: InvoiceItemService
+}
 
 export interface InvoiceItem {
   id: string
-  invoice_id: string
+  invoiceId: string
   description: string
-  contract_service_id: string | null
+  contractServiceId: string | null
+  contractService?: InvoiceItemContractService
   quantity: number
-  unit_price: number
+  unitPrice: number
   amount: number
-  created_at: string
+  createdAt: string
+}
+
+export interface InvoiceContract {
+  id: string
+  rentAmount: number
+  room?: {
+    id: string
+    roomNumber: string
+    property?: {
+      id: string
+      name: string
+    }
+  }
 }
 
 export interface Invoice {
   id: string
-  contract_id: string
+  contractId: string
+  contract?: InvoiceContract
   period: string
-  total_amount: number
+  totalAmount: number
   status: InvoiceStatus
-  due_date: string
-  paid_at: string | null
-  notes: string
-  created_at: string
-  updated_at: string
+  dueDate: string
+  paidAt: string | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
   items?: InvoiceItem[]
 }
 
-export interface MeterReading {
-  id: string
-  contract_service_id: string
-  period: string
-  value_start: number
-  value_end: number
-  recorded_at: string
-  recorded_by: string
-  created_at: string
+export interface GetInvoicesParams {
+  page?: number
+  limit?: number
+  propertyId?: string
+  roomId?: string
+  contractId?: string
+  status?: InvoiceStatus
+  period?: string // "YYYY-MM"
+  orderBy?: string
+  orderDirection?: 'ASC' | 'DESC'
 }
 
-export interface CreateMeterReadingDto {
-  contract_service_id: string
-  period: string
-  value_start: number
-  value_end: number
+export interface CreateInvoicePayload {
+  contractId: string
+  period: string // "YYYY-MM"
+  notes?: string
 }
