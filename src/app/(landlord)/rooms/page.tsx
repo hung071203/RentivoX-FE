@@ -301,7 +301,14 @@ function RoomServicesSheet({ room, open, onClose }: { room: Room | null; open: b
               </p>
             ) : (
               <div className="space-y-3">
-                <Select value={addServiceId} onValueChange={setAddServiceId}>
+                <Select
+                  value={addServiceId}
+                  onValueChange={(v) => {
+                    setAddServiceId(v)
+                    const svc = available.find((s) => s.id === v)
+                    if (svc) setAddUnitPrice(String(svc.unitPrice))
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Chọn dịch vụ..." />
                   </SelectTrigger>
@@ -900,7 +907,11 @@ export default function RoomsPage() {
                     name="roomType"
                     control={controlE}
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={(editRoom?.occupantCount ?? 0) > 0}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -911,6 +922,11 @@ export default function RoomsPage() {
                       </Select>
                     )}
                   />
+                  {(editRoom?.occupantCount ?? 0) > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Không thể thay đổi khi phòng đang có hợp đồng hiệu lực
+                    </p>
+                  )}
                 </FormField>
               </div>
 

@@ -35,6 +35,7 @@ export interface GetMeterReadingsParams {
   limit?: number
   propertyId?: string
   roomId?: string
+  serviceId?: string
   period?: string
   orderBy?: string
   orderDirection?: 'ASC' | 'DESC'

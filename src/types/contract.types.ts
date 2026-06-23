@@ -46,6 +46,7 @@ export interface ContractAmendmentServiceItem {
   id: string
   amendmentId: string
   contractServiceId: string
+  contractService?: { service?: { name: string; unit?: string | null } }
   newUnitPrice: number
 }
 

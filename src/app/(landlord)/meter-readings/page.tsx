@@ -56,10 +56,12 @@ import {
 } from "@/components/ui/select";
 import PageHeader from "@/components/common/PageHeader";
 import { SearchCombobox, type ComboboxOption } from "@/components/common/SearchCombobox";
+import { useQuery } from "@tanstack/react-query";
 import { useMeterReadings, useCreateMeterReading, useUpdateMeterReading, useDeleteMeterReading } from "@/hooks/useMeterReadings";
 import { useRooms, useRoom } from "@/hooks/useRooms";
 import { useServices } from "@/hooks/useServices";
 import { useProperties } from "@/hooks/useProperties";
+import { meterReadingsApi } from "@/apis/meter-readings.api";
 import { formatCurrency, formatPeriod } from "@/utils/format";
 import type { MeterReading, GetMeterReadingsParams } from "@/types/meter-reading.types";
 
@@ -232,7 +234,32 @@ export default function MeterReadingsPage() {
   });
 
   const selectedRoomId = watchC("roomId");
+  const selectedServiceId = watchC("serviceId");
+  const selectedPeriod = watchC("period");
   const { data: selectedRoomData } = useRoom(selectedRoomId);
+
+  // Tính kỳ trước để auto-fill chỉ số đầu
+  const prevPeriod = useMemo(() => {
+    if (!selectedPeriod) return null;
+    const [y, m] = selectedPeriod.split("-").map(Number);
+    const pm = m === 1 ? 12 : m - 1;
+    const py = m === 1 ? y - 1 : y;
+    return `${py}-${String(pm).padStart(2, "0")}-01`;
+  }, [selectedPeriod]);
+
+  const { data: prevReadingData } = useQuery({
+    queryKey: ["meter-reading-prev", selectedRoomId, selectedServiceId, prevPeriod],
+    queryFn: () =>
+      meterReadingsApi.getAll({ roomId: selectedRoomId, serviceId: selectedServiceId, period: prevPeriod!, limit: 1 }),
+    enabled: !!selectedRoomId && !!selectedServiceId && !!prevPeriod,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (prevReadingData === undefined) return;
+    const prev = prevReadingData.items[0];
+    setValueC("valueStart", prev ? Number(prev.valueEnd) : 0);
+  }, [prevReadingData, setValueC]);
 
   const { data: meteredServicesData, isFetching: meteredServicesFetching } = useServices({
     roomId: selectedRoomId || undefined,
@@ -404,13 +431,12 @@ export default function MeterReadingsPage() {
         <CardContent className="p-0 mt-4">
           <Table className="table-fixed w-full">
             <colgroup>
-              <col className="w-[20%]" />
-              <col className="w-[15%]" />
-              <col className="w-[10%]" />
-              <col className="w-[11%]" />
-              <col className="w-[11%]" />
+              <col className="w-[22%]" />
+              <col className="w-[17%]" />
+              <col className="w-[12%]" />
               <col className="w-[13%]" />
               <col className="w-[13%]" />
+              <col className="w-[16%]" />
               <col className="w-[7%]" />
             </colgroup>
             <TableHeader>
@@ -421,7 +447,6 @@ export default function MeterReadingsPage() {
                 <TableHead>Chỉ số đầu</TableHead>
                 <TableHead>Chỉ số cuối</TableHead>
                 <TableHead>Tiêu thụ</TableHead>
-                <TableHead>Thành tiền</TableHead>
                 <TableHead className="pr-4 text-right">Hành động</TableHead>
               </TableRow>
             </TableHeader>
@@ -481,16 +506,6 @@ export default function MeterReadingsPage() {
                     </TableCell>
                     <TableCell className="text-sm tabular-nums font-medium">
                       {mr.consumption.toLocaleString("vi-VN")} {unit}
-                    </TableCell>
-                    <TableCell className="text-sm font-medium text-indigo-700">
-                      <div>
-                        <span>{formatCurrency(mr.amountPerContract)}</span>
-                        {isShared && mr.contractCount > 1 && (
-                          <p className="text-[10px] text-muted-foreground font-normal">
-                            ÷{mr.contractCount} hợp đồng
-                          </p>
-                        )}
-                      </div>
                     </TableCell>
                     <TableCell className="pr-4 text-right">
                       <DropdownMenu>

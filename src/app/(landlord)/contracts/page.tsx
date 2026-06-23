@@ -81,6 +81,7 @@ import { AMENDMENT_TYPE_LABEL, ROOM_STATUS_LABEL, SERVICE_TYPE_LABEL } from "@/c
 import { formatCurrency, formatDate } from "@/utils/format"
 import type {
   AmendmentType,
+  ContractAmendment,
   ContractStatus,
   CreateAmendmentPayload,
   CreateContractPayload,
@@ -252,6 +253,7 @@ export default function ContractsPage() {
   const [prevDetailId, setPrevDetailId] = useState<string | null>(null)
   const [amendContractId, setAmendContractId] = useState<string | null>(null)
   const [terminateId, setTerminateId] = useState<string | null>(null)
+  const [viewAmendment, setViewAmendment] = useState<ContractAmendment | null>(null)
 
   const activeId = detailId ?? amendContractId
   const { data: activeContract, isLoading: detailLoading } = useContract(activeId ?? "")
@@ -1506,53 +1508,37 @@ export default function ContractsPage() {
                   ) : (
                     <div className="space-y-2">
                       {activeContract.amendments?.map((am) => (
-                        <div key={am.id} className="p-3 border rounded-lg space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium">{am.title}</p>
+                        <button
+                          key={am.id}
+                          type="button"
+                          onClick={() => setViewAmendment(am)}
+                          className="w-full text-left p-3 border rounded-lg hover:bg-muted/40 transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="space-y-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{am.title}</p>
                               <div className="flex items-center gap-2">
                                 <AmendmentTypeBadge type={am.amendmentType} />
                                 <span className="text-xs text-muted-foreground">
-                                  Hiệu lực: {formatDate(am.effectiveDate)}
+                                  {formatDate(am.effectiveDate)}
                                 </span>
                               </div>
                             </div>
-                            {am.isApplied ? (
-                              <span className="text-xs text-emerald-600 font-medium shrink-0">
-                                Đã áp dụng
-                              </span>
-                            ) : (
-                              <span className="text-xs text-amber-600 font-medium shrink-0">
-                                Chờ áp dụng
-                              </span>
-                            )}
-                          </div>
-                          {(am.newRentAmount !== null || am.newEndDate) && (
-                            <div className="text-xs text-muted-foreground space-y-0.5">
-                              {am.newRentAmount !== null && (
-                                <p>Tiền phòng mới: {formatCurrency(am.newRentAmount)}</p>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {am.isApplied ? (
+                                <span className="text-xs text-emerald-600 font-medium">Đã áp dụng</span>
+                              ) : (
+                                <span className="text-xs text-amber-600 font-medium">Chờ áp dụng</span>
                               )}
-                              {am.newEndDate && (
-                                <p>Ngày kết thúc mới: {formatDate(am.newEndDate)}</p>
-                              )}
+                              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                             </div>
+                          </div>
+                          {(am.amendmentServices?.length ?? 0) > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1.5">
+                              {am.amendmentServices!.length} thay đổi dịch vụ
+                            </p>
                           )}
-                          {am.notes && (
-                            <p className="text-xs text-muted-foreground">{am.notes}</p>
-                          )}
-                          {am.document && (
-                            <a
-                              href={am.document.fileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                            >
-                              <Paperclip className="h-3 w-3" />
-                              {am.document.fileName}
-                            </a>
-                          )}
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -1876,6 +1862,85 @@ export default function ContractsPage() {
               {terminateContract.isPending ? "Đang xử lý..." : "Xác nhận chấm dứt"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Amendment Detail Dialog ───────────────────────────────────────────── */}
+      <Dialog open={!!viewAmendment} onOpenChange={(o) => { if (!o) setViewAmendment(null) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{viewAmendment?.title}</DialogTitle>
+            <DialogDescription>
+              <span className="inline-flex items-center gap-2">
+                {viewAmendment && <AmendmentTypeBadge type={viewAmendment.amendmentType} />}
+                {viewAmendment?.isApplied
+                  ? <span className="text-emerald-600 font-medium">Đã áp dụng</span>
+                  : <span className="text-amber-600 font-medium">Chờ áp dụng</span>
+                }
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewAmendment && (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Ngày hiệu lực</p>
+                  <p className="font-medium">{formatDate(viewAmendment.effectiveDate)}</p>
+                </div>
+                {viewAmendment.newRentAmount !== null && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Tiền phòng mới</p>
+                    <p className="font-medium">{formatCurrency(viewAmendment.newRentAmount)}</p>
+                  </div>
+                )}
+                {viewAmendment.newEndDate && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Ngày kết thúc mới</p>
+                    <p className="font-medium">{formatDate(viewAmendment.newEndDate)}</p>
+                  </div>
+                )}
+              </div>
+
+              {(viewAmendment.amendmentServices?.length ?? 0) > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Thay đổi dịch vụ</p>
+                  <div className="space-y-1.5">
+                    {viewAmendment.amendmentServices!.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg border bg-muted/30">
+                        <span>{s.contractService?.service?.name ?? s.contractServiceId}</span>
+                        <span className="font-medium">
+                          {formatCurrency(s.newUnitPrice)}
+                          {s.contractService?.service?.unit ? `/${s.contractService.service.unit}` : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {viewAmendment.notes && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ghi chú</p>
+                  <p className="text-muted-foreground">{viewAmendment.notes}</p>
+                </div>
+              )}
+
+              {viewAmendment.document && (
+                <div className="pt-1 border-t">
+                  <a
+                    href={viewAmendment.document.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                  >
+                    <Paperclip className="h-3.5 w-3.5" />
+                    {viewAmendment.document.fileName}
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
