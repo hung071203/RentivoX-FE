@@ -1296,9 +1296,10 @@ export default function ContractsPage() {
                       <p className="text-muted-foreground text-xs mb-1">Ngày chấm dứt</p>
                       <p>{formatDate(activeContract.terminatedDate)}</p>
                       {activeContract.terminatedReason && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {activeContract.terminatedReason}
-                        </p>
+                        <div className="mt-1.5">
+                          <p className="text-muted-foreground text-xs mb-1">Lý do chấm dứt</p>
+                          <p className="text-sm">{activeContract.terminatedReason}</p>
+                        </div>
                       )}
                     </div>
                   )}
