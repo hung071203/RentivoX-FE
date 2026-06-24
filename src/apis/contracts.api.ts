@@ -21,6 +21,7 @@ export const contractsApi = {
   create: (data: CreateContractPayload) => {
     const fd = new FormData()
     if (data.file) fd.append('file', data.file)
+    fd.append('contractNumber', data.contractNumber)
     fd.append('roomId', data.roomId)
     fd.append('rentAmount', String(data.rentAmount))
     fd.append('depositAmount', String(data.depositAmount))

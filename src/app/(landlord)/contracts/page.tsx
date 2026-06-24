@@ -292,7 +292,7 @@ export default function ContractsPage() {
     ...(roomsData?.items.map((r) => ({
       value: r.id,
       label: `Phòng ${r.roomNumber}`,
-      sublabel: `${r.property?.name ?? ""} — ${ROOM_STATUS_LABEL[r.status] ?? r.status}`,
+      sublabel: `${r.property?.name ?? ""} — ${ROOM_STATUS_LABEL[r.status] ?? r.status}${r.basePrice ? ` · ${formatCurrency(r.basePrice)}/tháng` : ""}`,
     })) ?? []),
   ]
 
@@ -310,6 +310,10 @@ export default function ContractsPage() {
       setSelectedRoomType(room.roomType)
       if (room.roomType === "shared") {
         setCOccupants((p) => [{ ...(p[0] ?? { id: "0", tenantId: "", movedInDate: today }), isOwner: true }])
+      }
+      if (room.basePrice) {
+        setCRent(String(room.basePrice))
+        setCDeposit(String(room.basePrice))
       }
     }
     setCErrors((e) => ({ ...e, room: "" }))
@@ -989,7 +993,7 @@ export default function ContractsPage() {
               <FormField label="Mã hợp đồng" error={cErrors.contractNumber} required>
                 <Input
                   value={cContractNumber}
-                  onChange={(e) => setCContractNumber(e.target.value)}
+                  onChange={(e) => setCContractNumber(e.target.value.replace(/\s/g, ""))}
                   placeholder="VD: HĐ/2026/001"
                 />
               </FormField>
