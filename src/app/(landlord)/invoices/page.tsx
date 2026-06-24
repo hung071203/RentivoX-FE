@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import { MoreHorizontal, Plus, FileText } from 'lucide-react'
 import PageHeader from '@/components/common/PageHeader'
@@ -43,6 +43,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { SearchCombobox, type ComboboxOption } from '@/components/common/SearchCombobox'
 import { useInvoices, useInvoice, useCreateInvoice, useCancelInvoice } from '@/hooks/useInvoices'
 import { useProperties } from '@/hooks/useProperties'
 import { useContracts } from '@/hooks/useContracts'
@@ -88,22 +89,26 @@ function InvoiceDetailSheet({
   const { data: invoice } = useInvoice(invoiceId ?? '')
   if (!invoice) return null
 
-  const room = invoice.contract?.room
+  const contract = invoice.contract
+  const room = contract?.room
   const property = room?.property
+  const owner = contract?.owner
   const items = invoice.items ?? []
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <SheetContent className="w-full sm:max-w-lg flex flex-col gap-0 p-0">
         <SheetHeader className="px-6 py-5 border-b">
-          <SheetTitle>Chi tiết hóa đơn</SheetTitle>
+          <SheetTitle>
+            {invoice.invoiceNumber ?? 'Chi tiết hóa đơn'}
+          </SheetTitle>
           <SheetDescription>
             {formatPeriod(invoice.period)} · Phòng {room?.roomNumber} · {property?.name}
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
             <div>
               <p className="text-muted-foreground">Trạng thái</p>
               <div className="mt-1"><InvoiceStatusBadge status={invoice.status} /></div>
@@ -112,6 +117,28 @@ function InvoiceDetailSheet({
               <p className="text-muted-foreground">Hạn thanh toán</p>
               <p className="mt-1 font-medium">{formatDate(invoice.dueDate)}</p>
             </div>
+            {owner && (
+              <>
+                <div>
+                  <p className="text-muted-foreground">Người đại diện</p>
+                  <p className="mt-1 font-medium">{owner.fullName}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Số điện thoại</p>
+                  <p className="mt-1">{owner.phone ?? '—'}</p>
+                </div>
+              </>
+            )}
+            {contract?.startDate && (
+              <div className="col-span-2">
+                <p className="text-muted-foreground">Thời hạn hợp đồng</p>
+                <p className="mt-1">{formatDate(contract.startDate)} → {formatDate(contract.endDate!)}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-muted-foreground">Tiền phòng/tháng</p>
+              <p className="mt-1">{formatCurrency(Number(contract?.rentAmount ?? 0))}</p>
+            </div>
             <div>
               <p className="text-muted-foreground">Ngày tạo</p>
               <p className="mt-1">{formatDate(invoice.createdAt)}</p>
@@ -119,7 +146,7 @@ function InvoiceDetailSheet({
             {invoice.paidAt && (
               <div>
                 <p className="text-muted-foreground">Ngày thanh toán</p>
-                <p className="mt-1">{formatDate(invoice.paidAt)}</p>
+                <p className="mt-1 font-medium text-emerald-600">{formatDate(invoice.paidAt)}</p>
               </div>
             )}
           </div>
@@ -175,48 +202,90 @@ function InvoiceDetailSheet({
   )
 }
 
-// ─── Create Dialog ────────────────────────────────────────────────────────────
+// ─── Create Sheet ─────────────────────────────────────────────────────────────
 
-function CreateInvoiceDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [contractId, setContractId] = useState('none')
-  const [year, setYear] = useState(String(new Date().getFullYear()))
-  const [month, setMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'))
+function CreateInvoiceSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [contractId, setContractId] = useState('')
+  const [period, setPeriod] = useState('')
   const [notes, setNotes] = useState('')
+  const [searchRaw, setSearchRaw] = useState('')
+  const [search, setSearch] = useState('')
+  const [selectedCache, setSelectedCache] = useState<ComboboxOption | null>(null)
 
-  const { data: contractsData } = useContracts({ status: 'active', limit: 100 })
-  const contracts = contractsData?.items ?? []
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchRaw), 300)
+    return () => clearTimeout(t)
+  }, [searchRaw])
+
+  const { data: contractsData, isFetching } = useContracts({
+    status: 'active',
+    search: search || undefined,
+    limit: 30,
+  })
 
   const { mutate: create, isPending } = useCreateInvoice()
 
-  const currentYear = new Date().getFullYear()
-  const currentMonthStr = String(new Date().getMonth() + 1).padStart(2, '0')
-  const years = [String(currentYear - 1), String(currentYear)]
-  const maxMonth = year === String(currentYear) ? currentMonthStr : '12'
-  const months = Array.from({ length: 12 }, (_, i) => ({
-    value: String(i + 1).padStart(2, '0'),
-    label: `Tháng ${i + 1}`,
-  }))
+  const now = new Date()
+  const nowYear = now.getFullYear()
+  const nowMonthNum = now.getMonth() + 1
+  const nowMonth = String(nowMonthNum).padStart(2, '0')
+  const prevMonthNum = nowMonthNum === 1 ? 12 : nowMonthNum - 1
+  const prevYear = nowMonthNum === 1 ? nowYear - 1 : nowYear
+  const prevMonth = String(prevMonthNum).padStart(2, '0')
+  const periodOptions = [
+    { value: `${nowYear}-${nowMonth}`, label: `Tháng ${nowMonthNum}/${nowYear} (tháng này)` },
+    { value: `${prevYear}-${prevMonth}`, label: `Tháng ${prevMonthNum}/${prevYear} (tháng trước)` },
+  ]
 
-  function handleYearChange(y: string) {
-    setYear(y)
-    if (y === String(currentYear) && month > currentMonthStr) {
-      setMonth(currentMonthStr)
+  const contractOptions: ComboboxOption[] = useMemo(() => {
+    const opts: ComboboxOption[] = (contractsData?.items ?? []).map((c) => {
+      const room = c.room
+      const property = room?.property
+      const roomType = room?.roomType === 'shared' ? 'Phòng ghép' : 'Nguyên căn'
+      const dates = `${formatDate(c.startDate)} → ${formatDate(c.endDate)}`
+      return {
+        value: c.id,
+        label: `Phòng ${room?.roomNumber ?? '?'} — ${property?.name ?? '?'}`,
+        sublabel: `${roomType} · ${dates} · ${formatCurrency(Number(c.rentAmount))}/tháng`,
+      }
+    })
+    if (selectedCache && !opts.find((o) => o.value === selectedCache.value)) {
+      opts.unshift(selectedCache)
     }
+    return opts
+  }, [contractsData, selectedCache])
+
+  function handleSelectContract(id: string) {
+    const opt = contractOptions.find((o) => o.value === id)
+    if (opt) setSelectedCache(opt)
+    setContractId(id)
+  }
+
+  function handleClose() {
+    setContractId('')
+    setPeriod('')
+    setNotes('')
+    setSearchRaw('')
+    setSearch('')
+    setSelectedCache(null)
+    onClose()
   }
 
   function handleSubmit() {
-    if (!contractId || contractId === 'none') {
+    if (!contractId) {
       toast.error('Vui lòng chọn hợp đồng')
       return
     }
+    if (!period) {
+      toast.error('Vui lòng chọn kỳ hóa đơn')
+      return
+    }
     create(
-      { contractId, period: `${year}-${month}`, notes: notes || undefined },
+      { contractId, period, notes: notes || undefined },
       {
         onSuccess: () => {
           toast.success('Tạo hóa đơn thành công')
-          onClose()
-          setContractId('none')
-          setNotes('')
+          handleClose()
         },
         onError: (err) => toast.error(getErrorMessage(err)),
       },
@@ -224,68 +293,47 @@ function CreateInvoiceDialog({ open, onClose }: { open: boolean; onClose: () => 
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Tạo hóa đơn</DialogTitle>
-          <DialogDescription>Tạo hóa đơn thủ công cho một hợp đồng đang hoạt động</DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
+      <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+        <SheetHeader className="px-6 py-5 border-b">
+          <SheetTitle>Tạo hóa đơn</SheetTitle>
+          <SheetDescription>Tạo hóa đơn thủ công cho một hợp đồng đang hoạt động</SheetDescription>
+        </SheetHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Hợp đồng *</label>
-            <Select value={contractId} onValueChange={setContractId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Chọn hợp đồng..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none" disabled>Chọn hợp đồng...</SelectItem>
-                {contracts.map((c) => {
-                  const room = (c as any).room
-                  const property = room?.property
-                  return (
-                    <SelectItem key={c.id} value={c.id}>
-                      Phòng {room?.roomNumber ?? '?'} — {property?.name ?? '?'}
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
+            <label className="text-sm font-medium">Hợp đồng <span className="text-destructive">*</span></label>
+            <SearchCombobox
+              value={contractId}
+              onChange={handleSelectContract}
+              options={contractOptions}
+              placeholder="Chọn hợp đồng..."
+              searchPlaceholder="Tìm theo số phòng"
+              onSearch={setSearchRaw}
+              loading={isFetching}
+              hasMore={(contractsData?.total ?? 0) > (contractsData?.items.length ?? 0)}
+            />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Kỳ hóa đơn *</label>
-            <div className="flex gap-2">
-              <Select value={year} onValueChange={handleYearChange}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((y) => (
-                    <SelectItem key={y} value={y}>{y}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={month} onValueChange={setMonth}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {months
-                    .filter((m) => m.value <= maxMonth)
-                    .map((m) => (
-                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <label className="text-sm font-medium">Kỳ hóa đơn <span className="text-destructive">*</span></label>
+            <Select value={period} onValueChange={setPeriod}>
+              <SelectTrigger>
+                <SelectValue placeholder="Chọn kỳ..." />
+              </SelectTrigger>
+              <SelectContent>
+                {periodOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Ghi chú</label>
             <textarea
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              rows={2}
+              rows={3}
               placeholder="Tuỳ chọn"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -293,14 +341,14 @@ function CreateInvoiceDialog({ open, onClose }: { open: boolean; onClose: () => 
           </div>
         </div>
 
-        <DialogFooter>
+        <div className="px-6 py-4 border-t flex items-center justify-end gap-3 bg-muted/30">
           <Button variant="outline" onClick={onClose}>Hủy</Button>
           <Button onClick={handleSubmit} disabled={isPending}>
             {isPending ? 'Đang tạo...' : 'Tạo hóa đơn'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -355,7 +403,7 @@ export default function InvoicesPage() {
   const [propertyFilter, setPropertyFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [yearFilter, setYearFilter] = useState('all')
-  const [monthFilter, setMonthFilter] = useState('all')
+  const [monthFilter, setMonthFilter] = useState('')
 
   const [createOpen, setCreateOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -371,23 +419,20 @@ export default function InvoicesPage() {
 
   const currentYear = new Date().getFullYear()
   const currentMonthStr = String(new Date().getMonth() + 1).padStart(2, '0')
-  const years = [String(currentYear - 1), String(currentYear)]
+  const years = [String(currentYear - 2), String(currentYear - 1), String(currentYear)]
   const months = Array.from({ length: 12 }, (_, i) => ({
     value: String(i + 1).padStart(2, '0'),
     label: `Tháng ${i + 1}`,
   }))
-  const maxMonthFilter = yearFilter === String(currentYear) ? currentMonthStr : '12'
 
   function handleYearFilterChange(y: string) {
     setYearFilter(y)
-    if (y === String(currentYear) && monthFilter !== 'all' && monthFilter > currentMonthStr) {
-      setMonthFilter('all')
-    }
+    setMonthFilter('')
   }
 
   useEffect(() => {
     let period: string | undefined
-    if (yearFilter !== 'all' && monthFilter !== 'all') {
+    if (yearFilter !== 'all' && monthFilter !== '') {
       period = `${yearFilter}-${monthFilter}`
     }
     setParams((p) => ({
@@ -439,17 +484,24 @@ export default function InvoicesPage() {
               </SelectContent>
             </Select>
 
-            <Select value={monthFilter} onValueChange={setMonthFilter}>
+            <Select
+              value={monthFilter}
+              onValueChange={setMonthFilter}
+              disabled={yearFilter === 'all'}
+            >
               <SelectTrigger className="h-9 w-[130px]">
-                <SelectValue placeholder="Tháng" />
+                <SelectValue placeholder="Chọn tháng" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tất cả tháng</SelectItem>
-                {months
-                  .filter((m) => m.value <= maxMonthFilter)
-                  .map((m) => (
-                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                  ))}
+                {months.map((m) => (
+                  <SelectItem
+                    key={m.value}
+                    value={m.value}
+                    disabled={yearFilter === String(currentYear) && m.value > currentMonthStr}
+                  >
+                    {m.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -470,17 +522,17 @@ export default function InvoicesPage() {
         <CardContent className="p-0">
           <Table className="table-fixed">
             <colgroup>
-              <col className="w-[120px]" />
+              <col className="w-[150px]" />
               <col className="w-[80px]" />
-              <col className="w-[160px]" />
-              <col className="w-[140px]" />
-              <col className="w-[140px]" />
+              <col className="w-[150px]" />
+              <col className="w-[130px]" />
+              <col className="w-[130px]" />
               <col className="w-[110px]" />
               <col className="w-[56px]" />
             </colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead>Kỳ</TableHead>
+                <TableHead>Mã HĐ / Kỳ</TableHead>
                 <TableHead>Phòng</TableHead>
                 <TableHead>Nhà trọ</TableHead>
                 <TableHead className="text-right">Tổng tiền</TableHead>
@@ -512,7 +564,16 @@ export default function InvoicesPage() {
                       className="cursor-pointer"
                       onClick={() => setDetailId(inv.id)}
                     >
-                      <TableCell className="font-medium">{formatPeriod(inv.period)}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          {inv.invoiceNumber && (
+                            <p className="font-medium text-sm leading-none">{inv.invoiceNumber}</p>
+                          )}
+                          <p className={`text-xs leading-none ${inv.invoiceNumber ? 'text-muted-foreground' : 'font-medium'}`}>
+                            {formatPeriod(inv.period)}
+                          </p>
+                        </div>
+                      </TableCell>
                       <TableCell>Phòng {room?.roomNumber ?? '—'}</TableCell>
                       <TableCell className="truncate">{property?.name ?? '—'}</TableCell>
                       <TableCell className="text-right font-medium">
@@ -582,7 +643,7 @@ export default function InvoicesPage() {
         </CardContent>
       </Card>
 
-      <CreateInvoiceDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      <CreateInvoiceSheet open={createOpen} onClose={() => setCreateOpen(false)} />
       <InvoiceDetailSheet
         invoiceId={detailId}
         open={!!detailId}

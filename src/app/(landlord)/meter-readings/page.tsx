@@ -171,7 +171,7 @@ export default function MeterReadingsPage() {
   const initialPropertyId = searchParams.get("propertyId") ?? undefined;
 
   const [filterYear, setFilterYear] = useState("all");
-  const [filterMonth, setFilterMonth] = useState("all");
+  const [filterMonth, setFilterMonth] = useState("");
   const [params, setParams] = useState<GetMeterReadingsParams>({
     page: 1,
     limit: 20,
@@ -293,13 +293,13 @@ export default function MeterReadingsPage() {
   // ── Handlers ─────────────────────────────────────────────────────────────
   function handleFilterYearChange(y: string) {
     setFilterYear(y);
-    setFilterMonth("all");
+    setFilterMonth("");
     setParams((p) => ({ ...p, page: 1, period: undefined }));
   }
 
   function handleFilterMonthChange(m: string) {
     setFilterMonth(m);
-    if (filterYear !== "all" && m !== "all") {
+    if (filterYear !== "all" && m !== "") {
       setParams((p) => ({ ...p, page: 1, period: `${filterYear}-${m}-01` }));
     } else {
       setParams((p) => ({ ...p, page: 1, period: undefined }));
@@ -401,10 +401,9 @@ export default function MeterReadingsPage() {
                 disabled={filterYear === "all"}
               >
                 <SelectTrigger className="h-9 w-[120px]">
-                  <SelectValue />
+                  <SelectValue placeholder="Chọn tháng" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tất cả tháng</SelectItem>
                   {MONTHS.map((m) => (
                     <SelectItem
                       key={m.value}

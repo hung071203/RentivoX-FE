@@ -25,9 +25,19 @@ export interface InvoiceItem {
   createdAt: string
 }
 
+export interface InvoiceContractOwner {
+  id: string
+  fullName: string
+  phone: string | null
+  email: string | null
+}
+
 export interface InvoiceContract {
   id: string
   rentAmount: number
+  startDate?: string
+  endDate?: string
+  owner?: InvoiceContractOwner
   room?: {
     id: string
     roomNumber: string
@@ -40,6 +50,7 @@ export interface InvoiceContract {
 
 export interface Invoice {
   id: string
+  invoiceNumber: string | null
   contractId: string
   contract?: InvoiceContract
   period: string

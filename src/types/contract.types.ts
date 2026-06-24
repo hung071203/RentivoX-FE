@@ -68,6 +68,7 @@ export interface ContractAmendment {
 
 export interface Contract {
   id: string
+  contractNumber: string | null
   roomId: string
   room?: RoomRef
   rentAmount: number
@@ -96,6 +97,7 @@ export interface OccupantInput {
 }
 
 export interface CreateContractPayload {
+  contractNumber: string
   roomId: string
   rentAmount: number
   depositAmount: number

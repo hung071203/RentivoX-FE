@@ -414,6 +414,7 @@ export default function ContractsPage() {
   const [quickTenantForId, setQuickTenantForId] = useState<string | null>(null)
 
   // ── Create form state ────────────────────────────────────────────────────
+  const [cContractNumber, setCContractNumber] = useState("")
   const [cRoom, setCRoom] = useState("")
   const [cRent, setCRent] = useState("")
   const [cDeposit, setCDeposit] = useState("")
@@ -505,6 +506,7 @@ export default function ContractsPage() {
 
   // Create
   function openCreate() {
+    setCContractNumber("")
     setCRent("")
     setCDeposit("")
     setCStart(today)
@@ -595,6 +597,7 @@ export default function ContractsPage() {
 
   function validateCreate(): boolean {
     const errors: Record<string, string> = {}
+    if (!cContractNumber.trim()) errors.contractNumber = "Vui lòng nhập mã hợp đồng"
     if (!cRoom) errors.room = "Vui lòng chọn phòng"
     if (cRent === "" || Number(cRent) < 0) errors.rent = "Vui lòng nhập tiền phòng hợp lệ"
     if (cDeposit === "" || Number(cDeposit) < 0) errors.deposit = "Vui lòng nhập tiền cọc hợp lệ"
@@ -618,6 +621,7 @@ export default function ContractsPage() {
   function submitCreate() {
     if (!validateCreate()) return
     const payload: CreateContractPayload = {
+      contractNumber: cContractNumber.trim(),
       roomId: cRoom,
       rentAmount: Number(cRent),
       depositAmount: Number(cDeposit),
@@ -854,10 +858,14 @@ export default function ContractsPage() {
                   onClick={() => openDetail(contract.id)}
                 >
                   <TableCell className="pl-6">
-                    <p className="font-medium">Phòng {contract.room?.roomNumber}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {contract.room?.property?.name}
-                    </p>
+                    <div className="space-y-1">
+                      {contract.contractNumber && (
+                        <p className="font-medium text-sm leading-none">{contract.contractNumber}</p>
+                      )}
+                      <p className={`text-xs leading-none ${contract.contractNumber ? 'text-muted-foreground' : 'font-medium text-sm'}`}>
+                        Phòng {contract.room?.roomNumber} · {contract.room?.property?.name}
+                      </p>
+                    </div>
                   </TableCell>
                   <TableCell className="font-medium">{formatCurrency(contract.rentAmount)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
@@ -977,6 +985,14 @@ export default function ContractsPage() {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Thông tin hợp đồng
               </p>
+
+              <FormField label="Mã hợp đồng" error={cErrors.contractNumber} required>
+                <Input
+                  value={cContractNumber}
+                  onChange={(e) => setCContractNumber(e.target.value)}
+                  placeholder="VD: HĐ/2026/001"
+                />
+              </FormField>
 
               <FormField label="Dãy trọ" required>
                 <Select value={cProperty} onValueChange={handlePropertyChange}>
@@ -1247,6 +1263,12 @@ export default function ContractsPage() {
               <>
                 {/* Basic info */}
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                  {activeContract.contractNumber && (
+                    <div className="col-span-2">
+                      <p className="text-muted-foreground text-xs mb-1">Mã hợp đồng</p>
+                      <p className="font-semibold">{activeContract.contractNumber}</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">Trạng thái</p>
                     <ContractStatusBadge status={activeContract.status} />
