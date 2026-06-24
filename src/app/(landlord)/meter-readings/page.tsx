@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -12,6 +12,7 @@ import {
   Pencil,
   Trash2,
   Gauge,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,27 +57,26 @@ import {
 } from "@/components/ui/select";
 import PageHeader from "@/components/common/PageHeader";
 import { SearchCombobox, type ComboboxOption } from "@/components/common/SearchCombobox";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMeterReadings, useCreateMeterReading, useUpdateMeterReading, useDeleteMeterReading } from "@/hooks/useMeterReadings";
 import { useRooms, useRoom } from "@/hooks/useRooms";
 import { useServices } from "@/hooks/useServices";
 import { useProperties } from "@/hooks/useProperties";
 import { meterReadingsApi } from "@/apis/meter-readings.api";
 import { formatCurrency, formatPeriod } from "@/utils/format";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/error";
 import type { MeterReading, GetMeterReadingsParams } from "@/types/meter-reading.types";
 
-// ─── Schemas ─────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const createSchema = z.object({
-  roomId: z.string().min(1, "Vui lòng chọn phòng"),
-  serviceId: z.string().min(1, "Vui lòng chọn dịch vụ"),
-  period: z.string().min(1, "Vui lòng chọn kỳ"),
-  valueStart: z.number().min(0, "Chỉ số không được âm"),
-  valueEnd: z.number().min(0, "Chỉ số không được âm"),
-}).refine((d) => d.valueEnd >= d.valueStart, {
-  message: "Chỉ số cuối không được nhỏ hơn chỉ số đầu",
-  path: ["valueEnd"],
-});
+type ServiceRowData = {
+  id: string;
+  serviceId: string;
+  valueStart: string;
+  valueEnd: string;
+  err?: string;
+};
 
 const editSchema = z
   .object({
@@ -88,7 +88,6 @@ const editSchema = z
     path: ["valueEnd"],
   });
 
-type CreateForm = z.infer<typeof createSchema>;
 type EditForm = z.infer<typeof editSchema>;
 
 // ─── Pagination ───────────────────────────────────────────────────────────────
@@ -164,6 +163,116 @@ function FormField({
   );
 }
 
+// ─── ServiceRow ───────────────────────────────────────────────────────────────
+
+function ServiceRow({
+  roomId,
+  period,
+  services,
+  usedServiceIds,
+  row,
+  onChange,
+  onRemove,
+  canRemove,
+}: {
+  roomId: string;
+  period: string;
+  services: { id: string; name: string; unit?: string | null }[];
+  usedServiceIds: Set<string>;
+  row: ServiceRowData;
+  onChange: (updates: Partial<ServiceRowData>) => void;
+  onRemove: () => void;
+  canRemove: boolean;
+}) {
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; });
+
+  const prevPeriod = useMemo(() => {
+    if (!period) return null;
+    const [y, m] = period.split("-").map(Number);
+    const pm = m === 1 ? 12 : m - 1;
+    const py = m === 1 ? y - 1 : y;
+    return `${py}-${String(pm).padStart(2, "0")}-01`;
+  }, [period]);
+
+  const { data: prevData } = useQuery({
+    queryKey: ["mr-prev", roomId, row.serviceId, prevPeriod],
+    queryFn: () =>
+      meterReadingsApi.getAll({ roomId, serviceId: row.serviceId, period: prevPeriod!, limit: 1 }),
+    enabled: !!roomId && !!row.serviceId && !!prevPeriod,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (prevData === undefined) return;
+    const prev = prevData.items[0];
+    onChangeRef.current({ valueStart: prev ? String(Number(prev.valueEnd)) : "0" });
+  }, [prevData]);
+
+  const available = services.filter((s) => s.id === row.serviceId || !usedServiceIds.has(s.id));
+
+  return (
+    <div className="border rounded-lg p-3 space-y-3 bg-background">
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="flex-1 min-w-0">
+          <Select
+            value={row.serviceId}
+            onValueChange={(v) => onChange({ serviceId: v, valueStart: "0", valueEnd: "0", err: undefined })}
+          >
+            <SelectTrigger className={row.err && !row.serviceId ? "border-destructive" : ""}>
+              <SelectValue
+                placeholder={available.length === 0 ? "Đã chọn hết dịch vụ" : "Chọn dịch vụ"}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {available.map((svc) => (
+                <SelectItem key={svc.id} value={svc.id}>
+                  {svc.name}{svc.unit ? ` (${svc.unit})` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {canRemove && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-9 w-9 p-0 shrink-0"
+            onClick={onRemove}
+          >
+            <X className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Chỉ số đầu kỳ</Label>
+          <Input
+            type="number"
+            min={0}
+            step={0.01}
+            value={row.valueStart}
+            onChange={(e) => onChange({ valueStart: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Chỉ số cuối kỳ</Label>
+          <Input
+            type="number"
+            min={0}
+            step={0.01}
+            value={row.valueEnd}
+            onChange={(e) => onChange({ valueEnd: e.target.value, err: undefined })}
+            className={row.err && row.serviceId ? "border-destructive" : ""}
+          />
+        </div>
+      </div>
+      {row.err && <p className="text-xs text-destructive">{row.err}</p>}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MeterReadingsPage() {
@@ -201,7 +310,6 @@ export default function MeterReadingsPage() {
     limit: 20,
   });
 
-  const createMR = useCreateMeterReading();
   const updateMR = useUpdateMeterReading();
   const deleteMR = useDeleteMeterReading();
 
@@ -211,60 +319,31 @@ export default function MeterReadingsPage() {
   const limit = params.limit ?? 20;
   const properties = propertiesData?.items ?? [];
 
-  // ── Create form ──────────────────────────────────────────────────────────
-  const {
-    register: regC,
-    handleSubmit: submitC,
-    control: controlC,
-    watch: watchC,
-    setValue: setValueC,
-    reset: resetC,
-    formState: { errors: errC },
-  } = useForm<CreateForm>({
-    resolver: zodResolver(createSchema),
-    defaultValues: { roomId: "", serviceId: "", period: "", valueStart: 0, valueEnd: 0 },
-  });
+  // ── Create form state ────────────────────────────────────────────────────
+  const qc = useQueryClient();
+  const [cRoomId, setCRoomId] = useState("");
+  const [cPeriod, setCPeriod] = useState("");
+  const [cRows, setCRows] = useState<ServiceRowData[]>([
+    { id: "1", serviceId: "", valueStart: "0", valueEnd: "0" },
+  ]);
+  const [cSubmitting, setCSubmitting] = useState(false);
+  const [cRoomErr, setCRoomErr] = useState("");
+  const [cPeriodErr, setCPeriodErr] = useState("");
 
-  const selectedRoomId = watchC("roomId");
-  const selectedServiceId = watchC("serviceId");
-  const selectedPeriod = watchC("period");
-  const { data: selectedRoomData } = useRoom(selectedRoomId);
-
-  // Tính kỳ trước để auto-fill chỉ số đầu
-  const prevPeriod = useMemo(() => {
-    if (!selectedPeriod) return null;
-    const [y, m] = selectedPeriod.split("-").map(Number);
-    const pm = m === 1 ? 12 : m - 1;
-    const py = m === 1 ? y - 1 : y;
-    return `${py}-${String(pm).padStart(2, "0")}-01`;
-  }, [selectedPeriod]);
-
-  const { data: prevReadingData } = useQuery({
-    queryKey: ["meter-reading-prev", selectedRoomId, selectedServiceId, prevPeriod],
-    queryFn: () =>
-      meterReadingsApi.getAll({ roomId: selectedRoomId, serviceId: selectedServiceId, period: prevPeriod!, limit: 1 }),
-    enabled: !!selectedRoomId && !!selectedServiceId && !!prevPeriod,
-    staleTime: 30_000,
-  });
-
-  useEffect(() => {
-    if (prevReadingData === undefined) return;
-    const prev = prevReadingData.items[0];
-    setValueC("valueStart", prev ? Number(prev.valueEnd) : 0);
-  }, [prevReadingData, setValueC]);
+  const { data: selectedRoomData } = useRoom(cRoomId);
 
   const { data: meteredServicesData, isFetching: meteredServicesFetching } = useServices({
-    roomId: selectedRoomId || undefined,
+    roomId: cRoomId || undefined,
     type: "metered",
     isActive: true,
     limit: 100,
   });
-  const meteredServices = selectedRoomId ? (meteredServicesData?.items ?? []) : [];
+  const meteredServices = cRoomId ? (meteredServicesData?.items ?? []) : [];
 
-  // Reset service when room changes
-  useEffect(() => {
-    setValueC("serviceId", "");
-  }, [selectedRoomId, setValueC]);
+  const usedServiceIds = useMemo(
+    () => new Set(cRows.map((r) => r.serviceId).filter(Boolean)),
+    [cRows],
+  );
 
   // ── Edit form ─────────────────────────────────────────────────────────────
   const {
@@ -309,7 +388,9 @@ export default function MeterReadingsPage() {
   function handleRoomSelect(roomId: string) {
     const option = roomOptions.find((o) => o.value === roomId);
     if (option) setSelectedRoomCache(option);
-    setValueC("roomId", roomId);
+    setCRoomId(roomId);
+    setCRoomErr("");
+    setCRows([{ id: "1", serviceId: "", valueStart: "0", valueEnd: "0" }]);
   }
 
   function openEdit(reading: MeterReading) {
@@ -318,24 +399,59 @@ export default function MeterReadingsPage() {
   }
 
   function openCreate() {
-    resetC({ roomId: "", serviceId: "", period: "", valueStart: 0, valueEnd: 0 });
+    setCRoomId("");
+    setCPeriod("");
+    setCRows([{ id: "1", serviceId: "", valueStart: "0", valueEnd: "0" }]);
+    setCRoomErr("");
+    setCPeriodErr("");
     setSelectedRoomCache(null);
     setRoomSearchRaw("");
     setRoomSearch("");
     setCreateOpen(true);
   }
 
-  function onCreateSubmit(formData: CreateForm) {
-    createMR.mutate(
-      {
-        roomId: formData.roomId,
-        serviceId: formData.serviceId,
-        period: `${formData.period}-01`,
-        valueStart: formData.valueStart,
-        valueEnd: formData.valueEnd,
-      },
-      { onSuccess: () => setCreateOpen(false) },
+  async function onCreateSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    let valid = true;
+    if (!cRoomId) { setCRoomErr("Vui lòng chọn phòng"); valid = false; }
+    if (!cPeriod) { setCPeriodErr("Vui lòng chọn kỳ"); valid = false; }
+
+    const validated = cRows.map((row) => {
+      if (!row.serviceId) return { ...row, err: "Vui lòng chọn dịch vụ" };
+      if (Number(row.valueEnd) < Number(row.valueStart))
+        return { ...row, err: "Chỉ số cuối không được nhỏ hơn đầu kỳ" };
+      return { ...row, err: undefined };
+    });
+    setCRows(validated);
+    if (!valid || validated.some((r) => r.err)) return;
+
+    setCSubmitting(true);
+    const results = await Promise.allSettled(
+      cRows.map((row) =>
+        meterReadingsApi.create({
+          roomId: cRoomId,
+          serviceId: row.serviceId,
+          period: `${cPeriod}-01`,
+          valueStart: Number(row.valueStart),
+          valueEnd: Number(row.valueEnd),
+        }),
+      ),
     );
+    setCSubmitting(false);
+    qc.invalidateQueries({ queryKey: ["meter-readings"] });
+
+    const ok = results.filter((r) => r.status === "fulfilled").length;
+    const fail = results.filter((r) => r.status === "rejected");
+
+    if (fail.length === 0) {
+      toast.success(ok === 1 ? "Ghi chỉ số thành công" : `Đã ghi ${ok} chỉ số thành công`);
+      setCreateOpen(false);
+    } else if (ok > 0) {
+      toast.info(`Đã ghi ${ok}/${cRows.length} chỉ số. ${fail.length} chỉ số gặp lỗi.`);
+      setCRows((prev) => prev.filter((_, i) => results[i]?.status === "rejected"));
+    } else {
+      toast.error(getErrorMessage((fail[0] as PromiseRejectedResult).reason));
+    }
   }
 
   function onEditSubmit(formData: EditForm) {
@@ -575,113 +691,99 @@ export default function MeterReadingsPage() {
 
       {/* ── Create Sheet ─────────────────────────────────────────────────────── */}
       <Sheet open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
-        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0 overflow-x-hidden">
           <SheetHeader className="px-6 py-5 border-b">
             <SheetTitle>Ghi chỉ số</SheetTitle>
-            <SheetDescription>Nhập chỉ số dịch vụ đo đếm theo phòng</SheetDescription>
+            <SheetDescription>Nhập chỉ số dịch vụ đo đếm theo phòng và kỳ</SheetDescription>
           </SheetHeader>
-          <form onSubmit={submitC(onCreateSubmit)} className="flex flex-col flex-1 overflow-hidden">
+          <form onSubmit={onCreateSubmit} className="flex flex-col flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
 
-              <FormField label="Phòng" error={errC.roomId?.message} required>
-                <Controller
-                  name="roomId"
-                  control={controlC}
-                  render={({ field }) => (
-                    <SearchCombobox
-                      value={field.value}
-                      onChange={handleRoomSelect}
-                      options={roomOptions}
-                      placeholder="Chọn phòng..."
-                      searchPlaceholder="Tìm theo số phòng..."
-                      onSearch={setRoomSearchRaw}
-                      loading={roomsFetching}
-                      hasMore={(roomsData?.total ?? 0) > (roomsData?.items.length ?? 0)}
-                    />
+              <div className="space-y-4">
+                <FormField label="Phòng" error={cRoomErr} required>
+                  <SearchCombobox
+                    value={cRoomId}
+                    onChange={handleRoomSelect}
+                    options={roomOptions}
+                    placeholder="Chọn phòng..."
+                    searchPlaceholder="Tìm theo số phòng..."
+                    onSearch={setRoomSearchRaw}
+                    loading={roomsFetching}
+                    hasMore={(roomsData?.total ?? 0) > (roomsData?.items.length ?? 0)}
+                  />
+                  {selectedRoomData?.roomType === "shared" && (
+                    <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-md mt-1.5">
+                      Phòng ghép — chỉ số chia đều
+                    </p>
                   )}
-                />
-                {selectedRoomData?.roomType === "shared" && (
-                  <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-md mt-1.5">
-                    Phòng ghép — chỉ số chia đều cho tất cả hợp đồng đang hoạt động
+                </FormField>
+
+                <FormField label="Kỳ" error={cPeriodErr} required>
+                  <Select value={cPeriod} onValueChange={(v) => { setCPeriod(v); setCPeriodErr(""); }}>
+                    <SelectTrigger className={cPeriodErr ? "border-destructive" : ""}>
+                      <SelectValue placeholder="Chọn tháng" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PERIOD_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">
+                    Dịch vụ <span className="text-destructive ml-0.5">*</span>
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() =>
+                      setCRows((r) => [
+                        ...r,
+                        { id: String(Date.now()), serviceId: "", valueStart: "0", valueEnd: "0" },
+                      ])
+                    }
+                    disabled={!cRoomId || !cPeriod || cRows.length >= meteredServices.length}
+                  >
+                    <Plus className="h-3 w-3" />
+                    Thêm dịch vụ
+                  </Button>
+                </div>
+
+                {!cRoomId || !cPeriod ? (
+                  <p className="text-sm text-muted-foreground py-2">Chọn phòng và kỳ để ghi chỉ số</p>
+                ) : meteredServicesFetching ? (
+                  <p className="text-sm text-muted-foreground py-2">Đang tải dịch vụ...</p>
+                ) : meteredServices.length === 0 ? (
+                  <p className="text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-md">
+                    Phòng này chưa có dịch vụ đo đếm nào
                   </p>
+                ) : (
+                  <div className="space-y-3">
+                    {cRows.map((row) => (
+                      <ServiceRow
+                        key={row.id}
+                        roomId={cRoomId}
+                        period={cPeriod}
+                        services={meteredServices}
+                        usedServiceIds={usedServiceIds}
+                        row={row}
+                        onChange={(updates) =>
+                          setCRows((prev) =>
+                            prev.map((r) => (r.id === row.id ? { ...r, ...updates } : r)),
+                          )
+                        }
+                        onRemove={() => setCRows((prev) => prev.filter((r) => r.id !== row.id))}
+                        canRemove={cRows.length > 1}
+                      />
+                    ))}
+                  </div>
                 )}
-              </FormField>
-
-              <FormField label="Dịch vụ đo đếm" error={errC.serviceId?.message} required>
-                <Controller
-                  name="serviceId"
-                  control={controlC}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={!selectedRoomId || meteredServicesFetching}
-                    >
-                      <SelectTrigger className={errC.serviceId ? "border-destructive" : ""}>
-                        <SelectValue
-                          placeholder={
-                            !selectedRoomId
-                              ? "Chọn phòng trước"
-                              : meteredServicesFetching
-                              ? "Đang tải..."
-                              : meteredServices.length === 0
-                              ? "Không có dịch vụ đo đếm"
-                              : "Chọn dịch vụ"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {meteredServices.map((svc) => (
-                          <SelectItem key={svc.id} value={svc.id}>
-                            {svc.name}{svc.unit ? ` (${svc.unit})` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </FormField>
-
-              <FormField label="Kỳ (tháng)" error={errC.period?.message} required>
-                <Controller
-                  name="period"
-                  control={controlC}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className={errC.period ? "border-destructive" : ""}>
-                        <SelectValue placeholder="Chọn tháng ghi chỉ số" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PERIOD_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </FormField>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField label="Chỉ số đầu kỳ" error={errC.valueStart?.message} required>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    placeholder="0"
-                    {...regC("valueStart", { valueAsNumber: true })}
-                    className={errC.valueStart ? "border-destructive" : ""}
-                  />
-                </FormField>
-                <FormField label="Chỉ số cuối kỳ" error={errC.valueEnd?.message} required>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    placeholder="0"
-                    {...regC("valueEnd", { valueAsNumber: true })}
-                    className={errC.valueEnd ? "border-destructive" : ""}
-                  />
-                </FormField>
               </div>
 
             </div>
@@ -689,8 +791,8 @@ export default function MeterReadingsPage() {
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
                 Hủy
               </Button>
-              <Button type="submit" disabled={createMR.isPending}>
-                {createMR.isPending ? "Đang lưu..." : "Lưu"}
+              <Button type="submit" disabled={cSubmitting}>
+                {cSubmitting ? "Đang lưu..." : cRows.length > 1 ? `Lưu ${cRows.length} chỉ số` : "Lưu"}
               </Button>
             </div>
           </form>
@@ -763,7 +865,7 @@ export default function MeterReadingsPage() {
           <DialogHeader>
             <DialogTitle>Xóa bản ghi chỉ số</DialogTitle>
             <DialogDescription>
-              Bản ghi sẽ bị xóa vĩnh viễn. Chỉ xóa được khi hóa đơn tháng này chưa thanh toán.
+              Bản ghi sẽ bị xóa vĩnh viễn. Chỉ xóa được khi hóa đơn tháng này chưa được tạo.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

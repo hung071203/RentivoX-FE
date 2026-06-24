@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { MoreHorizontal, Plus, FileText } from "lucide-react";
+import { MoreHorizontal, Plus, FileText, X } from "lucide-react";
 import PageHeader from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -50,9 +51,9 @@ import {
 import {
   useInvoices,
   useInvoice,
-  useCreateInvoice,
   useCancelInvoice,
 } from "@/hooks/useInvoices";
+import { invoicesApi } from "@/apis/invoices.api";
 import { useProperties } from "@/hooks/useProperties";
 import { useContracts } from "@/hooks/useContracts";
 import { getErrorMessage } from "@/utils/error";
@@ -234,6 +235,8 @@ function InvoiceDetailSheet({
 
 // ─── Create Sheet ─────────────────────────────────────────────────────────────
 
+type ContractRowData = { id: string; contractId: string };
+
 function CreateInvoiceSheet({
   open,
   onClose,
@@ -241,14 +244,15 @@ function CreateInvoiceSheet({
   open: boolean;
   onClose: () => void;
 }) {
-  const [contractId, setContractId] = useState("");
+  const qc = useQueryClient();
   const [period, setPeriod] = useState("");
-  const [notes, setNotes] = useState("");
+  const [contractRows, setContractRows] = useState<ContractRowData[]>([
+    { id: "1", contractId: "" },
+  ]);
+  const [contractCaches, setContractCaches] = useState<Record<string, ComboboxOption>>({});
   const [searchRaw, setSearchRaw] = useState("");
   const [search, setSearch] = useState("");
-  const [selectedCache, setSelectedCache] = useState<ComboboxOption | null>(
-    null,
-  );
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchRaw), 300);
@@ -261,8 +265,6 @@ function CreateInvoiceSheet({
     limit: 30,
   });
 
-  const { mutate: create, isPending } = useCreateInvoice();
-
   const now = new Date();
   const nowYear = now.getFullYear();
   const nowMonthNum = now.getMonth() + 1;
@@ -271,22 +273,20 @@ function CreateInvoiceSheet({
   const prevYear = nowMonthNum === 1 ? nowYear - 1 : nowYear;
   const prevMonth = String(prevMonthNum).padStart(2, "0");
   const periodOptions = [
-    {
-      value: `${nowYear}-${nowMonth}`,
-      label: `Tháng ${nowMonthNum}/${nowYear} (tháng này)`,
-    },
-    {
-      value: `${prevYear}-${prevMonth}`,
-      label: `Tháng ${prevMonthNum}/${prevYear} (tháng trước)`,
-    },
+    { value: `${nowYear}-${nowMonth}`, label: `Tháng ${nowMonthNum}/${nowYear} (tháng này)` },
+    { value: `${prevYear}-${prevMonth}`, label: `Tháng ${prevMonthNum}/${prevYear} (tháng trước)` },
   ];
 
-  const contractOptions: ComboboxOption[] = useMemo(() => {
+  const usedContractIds = useMemo(
+    () => new Set(contractRows.map((r) => r.contractId).filter(Boolean)),
+    [contractRows],
+  );
+
+  const allContractOptions: ComboboxOption[] = useMemo(() => {
     const opts: ComboboxOption[] = (contractsData?.items ?? []).map((c) => {
       const room = c.room;
       const property = room?.property;
-      const roomType =
-        room?.roomType === "shared" ? "Phòng ghép" : "Nguyên căn";
+      const roomType = room?.roomType === "shared" ? "Phòng ghép" : "Nguyên căn";
       const dates = `${formatDate(c.startDate)} → ${formatDate(c.endDate)}`;
       return {
         value: c.id,
@@ -294,83 +294,72 @@ function CreateInvoiceSheet({
         sublabel: `${roomType} · ${dates}`,
       };
     });
-    if (selectedCache && !opts.find((o) => o.value === selectedCache.value)) {
-      opts.unshift(selectedCache);
-    }
+    Object.values(contractCaches).forEach((cached) => {
+      if (!opts.find((o) => o.value === cached.value)) opts.unshift(cached);
+    });
     return opts;
-  }, [contractsData, selectedCache]);
+  }, [contractsData, contractCaches]);
 
-  function handleSelectContract(id: string) {
-    const opt = contractOptions.find((o) => o.value === id);
-    if (opt) setSelectedCache(opt);
-    setContractId(id);
-  }
-
-  function handleClose() {
-    setContractId("");
-    setPeriod("");
-    setNotes("");
-    setSearchRaw("");
-    setSearch("");
-    setSelectedCache(null);
-    onClose();
-  }
-
-  function handleSubmit() {
-    if (!contractId) {
-      toast.error("Vui lòng chọn hợp đồng");
-      return;
-    }
-    if (!period) {
-      toast.error("Vui lòng chọn kỳ hóa đơn");
-      return;
-    }
-    create(
-      { contractId, period, notes: notes || undefined },
-      {
-        onSuccess: () => {
-          toast.success("Tạo hóa đơn thành công");
-          handleClose();
-        },
-        onError: (err) => toast.error(getErrorMessage(err)),
-      },
+  function getRowOptions(rowContractId: string) {
+    return allContractOptions.filter(
+      (o) => o.value === rowContractId || !usedContractIds.has(o.value),
     );
   }
 
+  function handleSelectContract(rowId: string, contractId: string) {
+    const opt = allContractOptions.find((o) => o.value === contractId);
+    if (opt) setContractCaches((prev) => ({ ...prev, [contractId]: opt }));
+    setContractRows((prev) =>
+      prev.map((r) => (r.id === rowId ? { ...r, contractId } : r)),
+    );
+  }
+
+  function handleClose() {
+    setPeriod("");
+    setContractRows([{ id: "1", contractId: "" }]);
+    setContractCaches({});
+    setSearchRaw("");
+    setSearch("");
+    onClose();
+  }
+
+  async function handleSubmit() {
+    if (!period) { toast.error("Vui lòng chọn kỳ hóa đơn"); return; }
+    const validRows = contractRows.filter((r) => r.contractId);
+    if (validRows.length === 0) { toast.error("Vui lòng chọn ít nhất 1 hợp đồng"); return; }
+
+    setSubmitting(true);
+    const results = await Promise.allSettled(
+      validRows.map((row) => invoicesApi.create({ contractId: row.contractId, period })),
+    );
+    setSubmitting(false);
+    qc.invalidateQueries({ queryKey: ["invoices"] });
+
+    const ok = results.filter((r) => r.status === "fulfilled").length;
+    const fail = results.filter((r) => r.status === "rejected");
+
+    if (fail.length === 0) {
+      toast.success(ok === 1 ? "Tạo hóa đơn thành công" : `Đã tạo ${ok} hóa đơn thành công`);
+      handleClose();
+    } else if (ok > 0) {
+      toast.info(`Đã tạo ${ok}/${validRows.length} hóa đơn. ${fail.length} hóa đơn gặp lỗi.`);
+      setContractRows(validRows.filter((_, i) => results[i]?.status === "rejected"));
+    } else {
+      toast.error(getErrorMessage((fail[0] as PromiseRejectedResult).reason));
+    }
+  }
+
+  const validCount = contractRows.filter((r) => r.contractId).length;
+
   return (
-    <Sheet
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) handleClose();
-      }}
-    >
-      <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+    <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <SheetContent className="w-full sm:max-w-lg flex flex-col gap-0 p-0">
         <SheetHeader className="px-6 py-5 border-b">
           <SheetTitle>Tạo hóa đơn</SheetTitle>
-          <SheetDescription>
-            Tạo hóa đơn thủ công cho một hợp đồng đang hoạt động
-          </SheetDescription>
+          <SheetDescription>Tạo hóa đơn cho nhiều hợp đồng trong cùng kỳ</SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">
-              Hợp đồng <span className="text-destructive">*</span>
-            </label>
-            <SearchCombobox
-              value={contractId}
-              onChange={handleSelectContract}
-              options={contractOptions}
-              placeholder="Chọn hợp đồng..."
-              searchPlaceholder="Tìm theo số phòng"
-              onSearch={setSearchRaw}
-              loading={isFetching}
-              hasMore={
-                (contractsData?.total ?? 0) > (contractsData?.items.length ?? 0)
-              }
-            />
-          </div>
-
           <div className="space-y-1.5">
             <label className="text-sm font-medium">
               Kỳ hóa đơn <span className="text-destructive">*</span>
@@ -381,32 +370,68 @@ function CreateInvoiceSheet({
               </SelectTrigger>
               <SelectContent>
                 {periodOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Ghi chú</label>
-            <textarea
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              rows={3}
-              placeholder="Tuỳ chọn"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">
+                Hợp đồng <span className="text-destructive">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  setContractRows((r) => [...r, { id: String(Date.now()), contractId: "" }])
+                }
+                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <Plus className="h-3 w-3" />
+                Thêm hợp đồng
+              </button>
+            </div>
+            <div className="space-y-2">
+              {contractRows.map((row) => (
+                <div key={row.id} className="flex gap-2">
+                  <div className="flex-1">
+                    <SearchCombobox
+                      value={row.contractId}
+                      onChange={(id) => handleSelectContract(row.id, id)}
+                      options={getRowOptions(row.contractId)}
+                      placeholder="Chọn hợp đồng..."
+                      searchPlaceholder="Tìm theo mã HĐ, số phòng..."
+                      onSearch={setSearchRaw}
+                      loading={isFetching}
+                      hasMore={(contractsData?.total ?? 0) > (contractsData?.items.length ?? 0)}
+                    />
+                  </div>
+                  {contractRows.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setContractRows((prev) => prev.filter((r) => r.id !== row.id))
+                      }
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="px-6 py-4 border-t flex items-center justify-end gap-3 bg-muted/30">
-          <Button variant="outline" onClick={onClose}>
-            Hủy
-          </Button>
-          <Button onClick={handleSubmit} disabled={isPending}>
-            {isPending ? "Đang tạo..." : "Tạo hóa đơn"}
+          <Button variant="outline" onClick={handleClose}>Hủy</Button>
+          <Button onClick={handleSubmit} disabled={submitting}>
+            {submitting
+              ? "Đang tạo..."
+              : validCount > 1
+              ? `Tạo ${validCount} hóa đơn`
+              : "Tạo hóa đơn"}
           </Button>
         </div>
       </SheetContent>
