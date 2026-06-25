@@ -213,7 +213,6 @@ export default function TenantPaymentsPage() {
                 <TableHead className="text-right">Số tiền</TableHead>
                 <TableHead>Phương thức</TableHead>
                 <TableHead>Ngày TT</TableHead>
-                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -251,11 +250,6 @@ export default function TenantPaymentsPage() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDate(p.paymentDate)}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                      </Button>
                     </TableCell>
                   </TableRow>
                 ))

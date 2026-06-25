@@ -62,20 +62,28 @@ function MethodBadge({ method }: { method: PaymentMethod }) {
   const colors: Record<PaymentMethod, string> = {
     cash: "bg-sky-50 text-sky-700 ring-sky-200",
     transfer: "bg-violet-50 text-violet-700 ring-violet-200",
-    other: "bg-gray-50 text-gray-600 ring-gray-200",
+    other: "bg-gray-50 text-gray-500 ring-gray-200",
   };
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ${colors[method]}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ${colors[method]}`}
     >
+      <CreditCard className="h-3 w-3" />
       {PAYMENT_METHOD_LABEL[method]}
     </span>
   );
 }
 
 function SourceLabel({ source }: { source: PaymentSource }) {
+  const colors: Record<PaymentSource, string> = {
+    manual: "bg-amber-50 text-amber-700 ring-amber-200",
+    automatic: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  };
+
   return (
-    <span className="text-xs text-muted-foreground">
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ${colors[source]}`}
+    >
       {source === "manual" ? "Thủ công" : "Tự động"}
     </span>
   );
@@ -101,21 +109,29 @@ function PaymentDetailSheet({
   const property = room?.property;
 
   return (
-    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Sheet
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
         <SheetHeader className="px-6 py-5 border-b">
           <SheetTitle className="font-mono text-base">
             {payment.referenceCode ?? "Chi tiết thanh toán"}
           </SheetTitle>
           <SheetDescription>
-            {formatDate(payment.paymentDate)} · {PAYMENT_METHOD_LABEL[payment.paymentMethod]}
+            {formatDate(payment.paymentDate)} ·{" "}
+            {PAYMENT_METHOD_LABEL[payment.paymentMethod]}
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
           {/* Số tiền nổi bật */}
           <div className="rounded-lg border bg-primary/5 p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Số tiền thanh toán</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              Số tiền thanh toán
+            </p>
             <p className="text-2xl font-bold text-primary">
               {formatCurrency(Number(payment.amount))}
             </p>
@@ -135,7 +151,9 @@ function PaymentDetailSheet({
               </div>
               <div>
                 <p className="text-muted-foreground">Ngày thanh toán</p>
-                <p className="mt-0.5 font-medium">{formatDate(payment.paymentDate)}</p>
+                <p className="mt-0.5 font-medium">
+                  {formatDate(payment.paymentDate)}
+                </p>
               </div>
               <div>
                 <p className="text-muted-foreground">Phương thức</p>
@@ -184,15 +202,15 @@ function PaymentDetailSheet({
                     inv?.status === "paid"
                       ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
                       : inv?.status === "cancelled"
-                      ? "bg-gray-50 text-gray-500 ring-gray-200"
-                      : "bg-amber-50 text-amber-700 ring-amber-200"
+                        ? "bg-gray-50 text-gray-500 ring-gray-200"
+                        : "bg-amber-50 text-amber-700 ring-amber-200"
                   }`}
                 >
                   {inv?.status === "paid"
                     ? "Đã thanh toán"
                     : inv?.status === "cancelled"
-                    ? "Đã hủy"
-                    : "Chưa thanh toán"}
+                      ? "Đã hủy"
+                      : "Chưa thanh toán"}
                 </span>
               </div>
               <div className="border-t pt-3 space-y-1.5 text-xs text-muted-foreground">
@@ -504,7 +522,8 @@ export default function PaymentsPage() {
       propertyId: propertyFilter !== "all" ? propertyFilter : undefined,
       paymentMethod:
         methodFilter !== "all" ? (methodFilter as PaymentMethod) : undefined,
-      source: sourceFilter !== "all" ? (sourceFilter as PaymentSource) : undefined,
+      source:
+        sourceFilter !== "all" ? (sourceFilter as PaymentSource) : undefined,
       referenceCode: refCode || undefined,
     }));
   }, [propertyFilter, methodFilter, sourceFilter, refCode]);
