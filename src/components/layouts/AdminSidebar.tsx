@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 const navItems = [
   { label: 'Tổng quan', href: ROUTES.ADMIN_DASHBOARD, icon: LayoutDashboard },
   { label: 'Tài khoản', href: ROUTES.ADMIN_USERS, icon: Users },
+  { label: 'Nhà trọ', href: ROUTES.ADMIN_PROPERTIES, icon: Building2 },
 ]
 
 export default function AdminSidebar() {

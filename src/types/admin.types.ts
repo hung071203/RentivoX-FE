@@ -36,6 +36,37 @@ export interface UpdateUserPayload {
   gender?: Gender
 }
 
+export interface GetAdminPropertiesParams {
+  page?: number
+  limit?: number
+  search?: string
+  landlordId?: string
+  orderBy?: string
+  orderDirection?: 'ASC' | 'DESC'
+}
+
+export interface AdminProperty {
+  id: string
+  name: string
+  address: string
+  ward: string | null
+  district: string | null
+  province: string | null
+  createdAt: string
+  landlord: {
+    id: string
+    fullName: string
+    email: string
+  } | null
+  rooms: {
+    total: number
+    available: number
+    occupied: number
+    maintenance: number
+    reserved: number
+  }
+}
+
 export interface AdminDashboardStats {
   users: {
     total: number

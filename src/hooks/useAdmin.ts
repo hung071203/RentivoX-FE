@@ -2,10 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { adminApi } from '@/apis/admin.api'
 import { getErrorMessage } from '@/utils/error'
-import type { GetUsersParams, CreateUserPayload, UpdateUserPayload } from '@/types/admin.types'
+import type { GetUsersParams, CreateUserPayload, UpdateUserPayload, GetAdminPropertiesParams } from '@/types/admin.types'
 
 const USERS_KEY = 'admin-users'
 const DASHBOARD_KEY = 'admin-dashboard'
+const PROPERTIES_KEY = 'admin-properties'
 
 export function useAdminUsers(params?: GetUsersParams) {
   return useQuery({
@@ -75,5 +76,20 @@ export function useAdminDashboard() {
   return useQuery({
     queryKey: [DASHBOARD_KEY],
     queryFn: adminApi.getDashboardStats,
+  })
+}
+
+export function useAdminLandlords(params?: GetUsersParams) {
+  return useQuery({
+    queryKey: [USERS_KEY, 'landlords', params],
+    queryFn: () => adminApi.getUsers({ ...params, role: 'landlord' }),
+  })
+}
+
+export function useAdminProperties(params?: GetAdminPropertiesParams, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: [PROPERTIES_KEY, params],
+    queryFn: () => adminApi.getProperties(params),
+    enabled: options?.enabled !== false,
   })
 }

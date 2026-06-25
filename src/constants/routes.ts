@@ -6,6 +6,7 @@ export const ROUTES = {
   // Admin
   ADMIN_DASHBOARD: '/admin/dashboard',
   ADMIN_USERS: '/admin/users',
+  ADMIN_PROPERTIES: '/admin/properties',
 
   // Landlord (no prefix — main user)
   DASHBOARD: '/dashboard',

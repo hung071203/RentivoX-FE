@@ -1,6 +1,14 @@
 import api from '@/lib/axios'
 import type { User } from '@/types/auth.types'
-import type { PaginatedResult, GetUsersParams, AdminDashboardStats, CreateUserPayload, UpdateUserPayload } from '@/types/admin.types'
+import type {
+  PaginatedResult,
+  GetUsersParams,
+  AdminDashboardStats,
+  CreateUserPayload,
+  UpdateUserPayload,
+  GetAdminPropertiesParams,
+  AdminProperty,
+} from '@/types/admin.types'
 
 export const adminApi = {
   // Users
@@ -25,4 +33,8 @@ export const adminApi = {
   // Dashboard
   getDashboardStats: () =>
     api.get<AdminDashboardStats>('/admin/dashboard').then(r => r.data),
+
+  // Properties (read-only)
+  getProperties: (params?: GetAdminPropertiesParams) =>
+    api.get<PaginatedResult<AdminProperty>>('/admin/properties', { params }).then(r => r.data),
 }
