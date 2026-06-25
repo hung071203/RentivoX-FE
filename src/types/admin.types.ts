@@ -67,25 +67,21 @@ export interface AdminProperty {
   }
 }
 
+export interface TopLandlord {
+  id: string
+  fullName: string
+  email: string
+  totalProperties: number
+  totalRooms: number
+  occupiedRooms: number
+}
+
 export interface AdminDashboardStats {
-  users: {
-    total: number
-    landlords: number
-    tenants: number
-  }
-  properties: {
-    total: number
-  }
-  rooms: {
-    total: number
-    available: number
-    occupied: number
-  }
-  contracts: {
-    active: number
-  }
-  revenueThisMonth: {
-    total: number
-    invoiceCount: number
-  }
+  totalLandlords: number
+  totalTenants: number
+  totalProperties: number
+  totalRooms: number
+  occupiedRooms: number
+  occupancyRate: number
+  topLandlords: TopLandlord[]
 }
