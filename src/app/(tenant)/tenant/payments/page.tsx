@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, ExternalLink } from "lucide-react";
 import PageHeader from "@/components/common/PageHeader";
+import { SortableHead } from "@/components/common/SortableHead";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Select,
@@ -204,8 +205,16 @@ export default function TenantPaymentsPage() {
     "all",
   );
   const [page, setPage] = useState(1);
+  const [orderBy, setOrderBy] = useState<string | undefined>(undefined);
+  const [orderDirection, setOrderDirection] = useState<"ASC" | "DESC">("DESC");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  const handleSort = (field: string, direction: "ASC" | "DESC" | undefined) => {
+    setOrderBy(direction ? field : undefined);
+    setOrderDirection(direction ?? "DESC");
+    setPage(1);
+  };
 
   const params = {
     page,
@@ -213,6 +222,7 @@ export default function TenantPaymentsPage() {
     ...(methodFilter !== "all"
       ? { paymentMethod: methodFilter as PaymentMethod }
       : {}),
+    ...(orderBy ? { orderBy, orderDirection } : {}),
   };
 
   const { data, isLoading } = useTenantPayments(params);
@@ -262,12 +272,12 @@ export default function TenantPaymentsPage() {
               <col className="w-[56px]" />
             </colgroup>
             <TableHeader>
-              <TableRow>
-                <TableHead>Mã TT</TableHead>
+              <TableRow className="hover:bg-transparent border-t">
+                <TableHead className="pl-6">Mã TT</TableHead>
                 <TableHead>Hóa đơn / Kỳ</TableHead>
-                <TableHead className="text-right">Số tiền</TableHead>
+                <SortableHead label="Số tiền" field="amount" orderBy={orderBy} orderDirection={orderDirection} onSort={handleSort} />
                 <TableHead>Phương thức</TableHead>
-                <TableHead>Ngày TT</TableHead>
+                <SortableHead label="Ngày TT" field="paymentDate" orderBy={orderBy} orderDirection={orderDirection} onSort={handleSort} />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -296,7 +306,7 @@ export default function TenantPaymentsPage() {
                     className="cursor-pointer hover:bg-muted/40"
                     onClick={() => openDetail(p.id)}
                   >
-                    <TableCell>
+                    <TableCell className="pl-6 py-3">
                       <p className="font-mono text-xs font-medium truncate">
                         {p.referenceCode ?? "—"}
                       </p>
@@ -309,7 +319,7 @@ export default function TenantPaymentsPage() {
                         {p.invoice ? formatPeriod(p.invoice.period) : ""}
                       </p>
                     </TableCell>
-                    <TableCell className="text-sm font-medium text-right">
+                    <TableCell className="text-sm font-medium">
                       {formatCurrency(p.amount)}
                     </TableCell>
                     <TableCell>

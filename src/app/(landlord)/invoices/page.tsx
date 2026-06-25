@@ -831,8 +831,8 @@ export default function InvoicesPage() {
               <col className="w-[7%]" />
             </colgroup>
             <TableHeader>
-              <TableRow>
-                <SortableHead label="Mã HĐ / Kỳ" field="period" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
+              <TableRow className="hover:bg-transparent border-t">
+                <SortableHead label="Mã HĐ / Kỳ" field="period" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} className="pl-6" />
                 <TableHead>Phòng</TableHead>
                 <TableHead>Nhà trọ</TableHead>
                 <SortableHead label="Tổng tiền" field="totalAmount" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
@@ -870,10 +870,10 @@ export default function InvoicesPage() {
                       className="cursor-pointer"
                       onClick={() => setDetailId(inv.id)}
                     >
-                      <TableCell>
+                      <TableCell className="pl-6 py-3">
                         <div className="space-y-1">
                           {inv.invoiceNumber && (
-                            <p className="font-medium text-sm leading-none">
+                            <p className="font-mono text-xs font-medium leading-none truncate">
                               {inv.invoiceNumber}
                             </p>
                           )}

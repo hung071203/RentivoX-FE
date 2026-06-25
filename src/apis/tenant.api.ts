@@ -12,6 +12,8 @@ export interface GetTenantContractsParams {
   page?: number
   limit?: number
   status?: ContractStatus
+  orderBy?: string
+  orderDirection?: 'ASC' | 'DESC'
 }
 
 export interface GetTenantInvoicesParams {
@@ -19,12 +21,16 @@ export interface GetTenantInvoicesParams {
   limit?: number
   status?: InvoiceStatus
   period?: string
+  orderBy?: string
+  orderDirection?: 'ASC' | 'DESC'
 }
 
 export interface GetTenantPaymentsParams {
   page?: number
   limit?: number
   paymentMethod?: PaymentMethod
+  orderBy?: string
+  orderDirection?: 'ASC' | 'DESC'
 }
 
 export const tenantApi = {

@@ -14,6 +14,7 @@ import {
   Eye,
 } from "lucide-react";
 import PageHeader from "@/components/common/PageHeader";
+import { SortableHead } from "@/components/common/SortableHead";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Select,
@@ -834,13 +835,22 @@ export default function TenantContractsPage() {
     "active",
   );
   const [page, setPage] = useState(1);
+  const [orderBy, setOrderBy] = useState<string | undefined>(undefined);
+  const [orderDirection, setOrderDirection] = useState<"ASC" | "DESC">("DESC");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  const handleSort = (field: string, direction: "ASC" | "DESC" | undefined) => {
+    setOrderBy(direction ? field : undefined);
+    setOrderDirection(direction ?? "DESC");
+    setPage(1);
+  };
 
   const params = {
     page,
     limit: 20,
     ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+    ...(orderBy ? { orderBy, orderDirection } : {}),
   };
 
   const { data, isLoading } = useTenantContracts(params);
@@ -889,11 +899,11 @@ export default function TenantContractsPage() {
               <col className="w-[56px]" />
             </colgroup>
             <TableHeader>
-              <TableRow>
-                <TableHead>Mã HĐ / Phòng</TableHead>
+              <TableRow className="hover:bg-transparent border-t">
+                <TableHead className="pl-6">Mã HĐ / Phòng</TableHead>
                 <TableHead>Nhà trọ</TableHead>
                 <TableHead>Tiền phòng</TableHead>
-                <TableHead>Thời hạn</TableHead>
+                <SortableHead label="Thời hạn" field="startDate" orderBy={orderBy} orderDirection={orderDirection} onSort={handleSort} />
                 <TableHead>Trạng thái</TableHead>
               </TableRow>
             </TableHeader>
@@ -925,7 +935,7 @@ export default function TenantContractsPage() {
                     className="cursor-pointer hover:bg-muted/40"
                     onClick={() => openDetail(c.id)}
                   >
-                    <TableCell>
+                    <TableCell className="pl-6 py-3">
                       {c.contractNumber ? (
                         <p className="font-mono text-xs font-semibold truncate">
                           {c.contractNumber}

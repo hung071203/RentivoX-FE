@@ -607,8 +607,8 @@ export default function PaymentsPage() {
               <col className="w-[80px]" />
             </colgroup>
             <TableHeader>
-              <TableRow>
-                <TableHead>Mã TT / Hóa đơn</TableHead>
+              <TableRow className="hover:bg-transparent border-t">
+                <TableHead className="pl-6">Mã TT / Hóa đơn</TableHead>
                 <TableHead>Phòng · Nhà trọ</TableHead>
                 <SortableHead label="Số tiền" field="amount" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
                 <TableHead>Phương thức</TableHead>
@@ -647,7 +647,7 @@ export default function PaymentsPage() {
                       className="cursor-pointer"
                       onClick={() => setDetailPayment(p)}
                     >
-                      <TableCell>
+                      <TableCell className="pl-6 py-3">
                         <div className="space-y-0.5">
                           <p className="font-mono text-xs font-medium leading-none truncate">
                             {p.referenceCode ?? "—"}

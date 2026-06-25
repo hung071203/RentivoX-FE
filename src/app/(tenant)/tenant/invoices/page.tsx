@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { AlertCircle, ExternalLink } from 'lucide-react'
 import PageHeader from '@/components/common/PageHeader'
+import { SortableHead } from '@/components/common/SortableHead'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
@@ -174,8 +175,16 @@ export default function TenantInvoicesPage() {
   const [yearFilter, setYearFilter] = useState<string>('')
   const [monthFilter, setMonthFilter] = useState<string>('')
   const [page, setPage] = useState(1)
+  const [orderBy, setOrderBy] = useState<string | undefined>(undefined)
+  const [orderDirection, setOrderDirection] = useState<'ASC' | 'DESC'>('DESC')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+
+  const handleSort = (field: string, direction: 'ASC' | 'DESC' | undefined) => {
+    setOrderBy(direction ? field : undefined)
+    setOrderDirection(direction ?? 'DESC')
+    setPage(1)
+  }
 
   // Auto-open from URL param ?invoiceId=xxx
   useEffect(() => {
@@ -195,6 +204,7 @@ export default function TenantInvoicesPage() {
     limit: 20,
     ...(statusFilter !== 'all' ? { status: statusFilter as InvoiceStatus } : {}),
     ...(period ? { period } : {}),
+    ...(orderBy ? { orderBy, orderDirection } : {}),
   }
 
   const { data, isLoading } = useTenantInvoices(params)
@@ -285,12 +295,12 @@ export default function TenantInvoicesPage() {
               <col className="w-[56px]" />
             </colgroup>
             <TableHeader>
-              <TableRow>
-                <TableHead>Mã HĐ / Kỳ</TableHead>
+              <TableRow className="hover:bg-transparent border-t">
+                <SortableHead label="Mã HĐ / Kỳ" field="period" orderBy={orderBy} orderDirection={orderDirection} onSort={handleSort} className="pl-6" />
                 <TableHead>Phòng</TableHead>
-                <TableHead className="text-right">Tổng tiền</TableHead>
+                <SortableHead label="Tổng tiền" field="totalAmount" orderBy={orderBy} orderDirection={orderDirection} onSort={handleSort} />
                 <TableHead>Trạng thái</TableHead>
-                <TableHead>Hạn TT</TableHead>
+                <SortableHead label="Hạn TT" field="dueDate" orderBy={orderBy} orderDirection={orderDirection} onSort={handleSort} />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -315,7 +325,7 @@ export default function TenantInvoicesPage() {
                       className="cursor-pointer hover:bg-muted/40"
                       onClick={() => openDetail(inv.id)}
                     >
-                      <TableCell>
+                      <TableCell className="pl-6 py-3">
                         <p className="font-mono text-xs font-semibold truncate">{inv.invoiceNumber ?? '—'}</p>
                         <p className="text-xs text-muted-foreground">{formatPeriod(inv.period)}</p>
                       </TableCell>
