@@ -77,6 +77,7 @@ import { useCreateTenant } from "@/hooks/useTenants"
 import { useProperties } from "@/hooks/useProperties"
 import { SearchCombobox } from "@/components/common/SearchCombobox"
 import type { ComboboxOption } from "@/components/common/SearchCombobox"
+import { SortableHead } from "@/components/common/SortableHead"
 import { AMENDMENT_TYPE_LABEL, ROOM_STATUS_LABEL, SERVICE_TYPE_LABEL } from "@/constants/enums"
 import { formatCurrency, formatDate } from "@/utils/format"
 import type {
@@ -238,6 +239,10 @@ export default function ContractsPage() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("active")
   const { data, isLoading } = useContracts(params)
+
+  const handleSort = (field: string, direction: "ASC" | "DESC" | undefined) => {
+    setParams((p) => ({ ...p, page: 1, orderBy: direction ? field : undefined, orderDirection: direction }))
+  }
 
   // Fetch room data when filter has a roomId (dùng để pre-populate create form)
   const { data: filterRoom } = useQuery({
@@ -831,10 +836,10 @@ export default function ContractsPage() {
             <TableHeader>
               <TableRow className="hover:bg-transparent border-t">
                 <TableHead className="pl-6">Phòng</TableHead>
-                <TableHead>Tiền phòng</TableHead>
-                <TableHead>Thời hạn</TableHead>
+                <SortableHead label="Tiền phòng" field="rentAmount" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
+                <SortableHead label="Thời hạn" field="startDate" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
                 <TableHead>Trạng thái</TableHead>
-                <TableHead>Ngày tạo</TableHead>
+                <SortableHead label="Ngày tạo" field="createdAt" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
                 <TableHead className="pr-4 text-right">Hành động</TableHead>
               </TableRow>
             </TableHeader>

@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/select";
 import PageHeader from "@/components/common/PageHeader";
 import { SearchCombobox, type ComboboxOption } from "@/components/common/SearchCombobox";
+import { SortableHead } from "@/components/common/SortableHead";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMeterReadings, useCreateMeterReading, useUpdateMeterReading, useDeleteMeterReading } from "@/hooks/useMeterReadings";
 import { useRooms, useRoom } from "@/hooks/useRooms";
@@ -300,6 +301,10 @@ export default function MeterReadingsPage() {
     const t = setTimeout(() => setRoomSearch(roomSearchRaw), 300);
     return () => clearTimeout(t);
   }, [roomSearchRaw]);
+
+  const handleSort = (field: string, direction: "ASC" | "DESC" | undefined) => {
+    setParams((p) => ({ ...p, page: 1, orderBy: direction ? field : undefined, orderDirection: direction }));
+  };
 
   // ── Data ────────────────────────────────────────────────────────────────────
   const { data, isLoading } = useMeterReadings(params);
@@ -550,7 +555,7 @@ export default function MeterReadingsPage() {
               <TableRow className="hover:bg-transparent border-t">
                 <TableHead className="pl-6">Phòng</TableHead>
                 <TableHead>Dịch vụ</TableHead>
-                <TableHead>Kỳ</TableHead>
+                <SortableHead label="Kỳ" field="period" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
                 <TableHead>Chỉ số đầu</TableHead>
                 <TableHead>Chỉ số cuối</TableHead>
                 <TableHead>Tiêu thụ</TableHead>

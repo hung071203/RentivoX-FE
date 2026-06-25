@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { MoreHorizontal, Plus, FileText, X, CreditCard } from "lucide-react";
 import PageHeader from "@/components/common/PageHeader";
+import { SortableHead } from "@/components/common/SortableHead";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -682,6 +683,10 @@ export default function InvoicesPage() {
   const [yearFilter, setYearFilter] = useState("all");
   const [monthFilter, setMonthFilter] = useState("");
 
+  const handleSort = (field: string, direction: "ASC" | "DESC" | undefined) => {
+    setParams((p) => ({ ...p, page: 1, orderBy: direction ? field : undefined, orderDirection: direction }));
+  };
+
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [cancelInvoice, setCancelInvoice] = useState<Invoice | null>(null);
@@ -746,8 +751,8 @@ export default function InvoicesPage() {
       />
 
       <Card>
-        <CardHeader className="pb-4">
-          <div className="flex flex-wrap gap-2">
+        <CardHeader className="pb-0">
+          <div className="flex flex-wrap items-center gap-3">
             <Select value={propertyFilter} onValueChange={setPropertyFilter}>
               <SelectTrigger className="h-9 w-[160px]">
                 <SelectValue placeholder="Nhà trọ" />
@@ -814,25 +819,25 @@ export default function InvoicesPage() {
           </div>
         </CardHeader>
 
-        <CardContent className="p-0">
-          <Table className="table-fixed">
+        <CardContent className="p-0 mt-4">
+          <Table className="table-fixed w-full">
             <colgroup>
-              <col className="w-[150px]" />
-              <col className="w-[80px]" />
-              <col className="w-[150px]" />
-              <col className="w-[130px]" />
-              <col className="w-[130px]" />
-              <col className="w-[110px]" />
-              <col className="w-[56px]" />
+              <col className="w-[22%]" />
+              <col className="w-[17%]" />
+              <col className="w-[12%]" />
+              <col className="w-[13%]" />
+              <col className="w-[13%]" />
+              <col className="w-[16%]" />
+              <col className="w-[7%]" />
             </colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead>Mã HĐ / Kỳ</TableHead>
+                <SortableHead label="Mã HĐ / Kỳ" field="period" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
                 <TableHead>Phòng</TableHead>
                 <TableHead>Nhà trọ</TableHead>
-                <TableHead className="text-right">Tổng tiền</TableHead>
+                <SortableHead label="Tổng tiền" field="totalAmount" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
                 <TableHead>Trạng thái</TableHead>
-                <TableHead>Hạn thanh toán</TableHead>
+                <SortableHead label="Hạn thanh toán" field="dueDate" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
                 <TableHead className="pr-4 text-right">Hành động</TableHead>
               </TableRow>
             </TableHeader>
@@ -883,7 +888,7 @@ export default function InvoicesPage() {
                       <TableCell className="truncate">
                         {property?.name ?? "—"}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="font-medium">
                         {formatCurrency(Number(inv.totalAmount))}
                       </TableCell>
                       <TableCell>

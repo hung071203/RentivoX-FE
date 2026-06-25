@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { MoreHorizontal, Plus, CreditCard, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/common/PageHeader";
+import { SortableHead } from "@/components/common/SortableHead";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -499,6 +500,10 @@ export default function PaymentsPage() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [refCodeRaw, setRefCodeRaw] = useState("");
   const [refCode, setRefCode] = useState("");
+  const handleSort = (field: string, direction: "ASC" | "DESC" | undefined) => {
+    setParams((p) => ({ ...p, page: 1, orderBy: direction ? field : undefined, orderDirection: direction }));
+  };
+
   const [createOpen, setCreateOpen] = useState(false);
   const [detailPayment, setDetailPayment] = useState<Payment | null>(null);
 
@@ -605,10 +610,10 @@ export default function PaymentsPage() {
               <TableRow>
                 <TableHead>Mã TT / Hóa đơn</TableHead>
                 <TableHead>Phòng · Nhà trọ</TableHead>
-                <TableHead className="text-right">Số tiền</TableHead>
+                <SortableHead label="Số tiền" field="amount" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
                 <TableHead>Phương thức</TableHead>
                 <TableHead>Nguồn</TableHead>
-                <TableHead>Ngày thanh toán</TableHead>
+                <SortableHead label="Ngày thanh toán" field="paymentDate" orderBy={params.orderBy} orderDirection={params.orderDirection} onSort={handleSort} />
                 <TableHead className="pr-4 text-right">Hành động</TableHead>
               </TableRow>
             </TableHeader>
@@ -662,7 +667,7 @@ export default function PaymentsPage() {
                           </p>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="font-medium">
                         {formatCurrency(Number(p.amount))}
                       </TableCell>
                       <TableCell>
