@@ -332,7 +332,7 @@ export default function TenantInvoicesPage() {
                       <TableCell className="text-sm text-muted-foreground">
                         {inv.contract?.room ? `Phòng ${inv.contract.room.roomNumber}` : '—'}
                       </TableCell>
-                      <TableCell className="text-sm font-medium text-right">
+                      <TableCell className="text-sm font-medium">
                         {formatCurrency(inv.totalAmount)}
                       </TableCell>
                       <TableCell>
