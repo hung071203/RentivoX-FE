@@ -48,6 +48,19 @@ export function useDeleteTenant() {
   })
 }
 
+export function useToggleTenantActive() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => tenantsApi.toggleActive(id),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['tenants'] })
+      const status = data.user?.isActive ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản'
+      toast.success(status)
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+}
+
 export function useUploadTenantIdCard() {
   const qc = useQueryClient()
   return useMutation({

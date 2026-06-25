@@ -18,6 +18,9 @@ export const tenantsApi = {
   delete: (id: string) =>
     api.delete(`/landlord/tenants/${id}`).then((r) => r.data),
 
+  toggleActive: (id: string) =>
+    api.patch<Tenant>(`/landlord/tenants/${id}/toggle-active`).then((r) => r.data),
+
   uploadIdCard: (id: string, side: 'front' | 'back', file: File) => {
     const formData = new FormData()
     formData.append('file', file)

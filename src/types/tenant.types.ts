@@ -1,8 +1,14 @@
 export type Gender = 'male' | 'female' | 'other'
 
+export interface TenantUser {
+  id: string
+  isActive: boolean
+}
+
 export interface Tenant {
   id: string
   userId: string | null
+  user?: TenantUser | null
   landlordId: string
   fullName: string
   phone: string | null

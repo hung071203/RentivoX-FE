@@ -13,6 +13,8 @@ import {
   Trash2,
   User,
   Camera,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +63,7 @@ import {
   useUpdateTenant,
   useDeleteTenant,
   useUploadTenantIdCard,
+  useToggleTenantActive,
 } from "@/hooks/useTenants";
 import { GENDER_LABEL } from "@/constants/enums";
 import type {
@@ -157,16 +160,27 @@ function FormField({
 
 // ─── Badges ──────────────────────────────────────────────────────────────────
 
-function AccountBadge({ hasAccount }: { hasAccount: boolean }) {
-  return hasAccount ? (
+function AccountBadge({ hasAccount, isActive }: { hasAccount: boolean; isActive?: boolean | null }) {
+  if (!hasAccount) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground ring-1 ring-border">
+        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+        Chưa có
+      </span>
+    );
+  }
+  if (isActive === false) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 ring-1 ring-red-200">
+        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+        Đã khóa
+      </span>
+    );
+  }
+  return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
       Có tài khoản
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground ring-1 ring-border">
-      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
-      Chưa có
     </span>
   );
 }
@@ -265,6 +279,7 @@ export default function TenantsPage() {
   const updateTenant = useUpdateTenant();
   const deleteTenant = useDeleteTenant();
   const uploadIdCard = useUploadTenantIdCard();
+  const toggleActive = useToggleTenantActive();
 
   // ── Create form ──────────────────────────────────────────────────────────
   const {
@@ -513,7 +528,7 @@ export default function TenantsPage() {
                     {tenant.gender ? GENDER_LABEL[tenant.gender] : "—"}
                   </TableCell>
                   <TableCell>
-                    <AccountBadge hasAccount={!!tenant.userId} />
+                    <AccountBadge hasAccount={!!tenant.userId} isActive={tenant.user?.isActive} />
                   </TableCell>
                   <TableCell className="pr-4 text-right">
                     <DropdownMenu>
@@ -531,6 +546,29 @@ export default function TenantsPage() {
                           <Pencil className="h-4 w-4 mr-2 text-muted-foreground" />
                           Chỉnh sửa
                         </DropdownMenuItem>
+                        {tenant.userId && (
+                          <DropdownMenuItem
+                            onClick={() => toggleActive.mutate(tenant.id)}
+                            disabled={toggleActive.isPending}
+                            className={
+                              tenant.user?.isActive === false
+                                ? "text-emerald-600 focus:text-emerald-600"
+                                : "text-amber-600 focus:text-amber-600"
+                            }
+                          >
+                            {tenant.user?.isActive === false ? (
+                              <>
+                                <Unlock className="h-4 w-4 mr-2" />
+                                Mở khóa
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="h-4 w-4 mr-2" />
+                                Khóa tài khoản
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => setDeleteId(tenant.id)}

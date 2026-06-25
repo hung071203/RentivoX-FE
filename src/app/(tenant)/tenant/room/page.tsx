@@ -1,9 +1,12 @@
-﻿import PageHeader from '@/components/common/PageHeader'
+'use client'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { ROUTES } from '@/constants/routes'
 
-export default function Page() {
-  return (
-    <div>
-      <PageHeader title="Phòng của tôi" description="Thông tin phòng đang thuê" />
-    </div>
-  )
+export default function TenantRoomPage() {
+  const router = useRouter()
+  useEffect(() => {
+    router.replace(ROUTES.TENANT_CONTRACTS)
+  }, [router])
+  return null
 }

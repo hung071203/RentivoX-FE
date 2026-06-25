@@ -1,13 +1,12 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, DoorOpen, FileText, Receipt, Wallet, Building2 } from 'lucide-react'
+import { LayoutDashboard, FileText, Receipt, Wallet, Building2 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { label: 'Tổng quan', href: ROUTES.TENANT_DASHBOARD, icon: LayoutDashboard },
-  { label: 'Phòng của tôi', href: ROUTES.TENANT_ROOM, icon: DoorOpen },
   { label: 'Hợp đồng', href: ROUTES.TENANT_CONTRACTS, icon: FileText },
   { label: 'Hóa đơn', href: ROUTES.TENANT_INVOICES, icon: Receipt },
   { label: 'Thanh toán', href: ROUTES.TENANT_PAYMENTS, icon: Wallet },
