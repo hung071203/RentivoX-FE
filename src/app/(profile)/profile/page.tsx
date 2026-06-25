@@ -89,6 +89,17 @@ function FormField({ label, error, children }: { label: string; error?: string; 
   )
 }
 
+function ReadOnlyField({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium">{label}</Label>
+      <div className="flex min-h-9 w-full items-center rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground">
+        {value ?? <span className="text-muted-foreground italic">Chưa cập nhật</span>}
+      </div>
+    </div>
+  )
+}
+
 function PwInput({ show, onToggle, ...props }: React.ComponentProps<typeof Input> & { show: boolean; onToggle: () => void }) {
   return (
     <div className="relative">
@@ -264,7 +275,7 @@ function ProfileContent({ profile }: { profile: User }) {
       </TabsList>
 
       {/* ── Tab 1: Thông tin cơ bản ──────────────────────────────────────── */}
-      <TabsContent value="info" className="mt-4">
+      <TabsContent value="info" className="mt-4 space-y-4">
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-base">Thông tin cơ bản</CardTitle>
@@ -313,6 +324,71 @@ function ProfileContent({ profile }: { profile: User }) {
             </form>
           </CardContent>
         </Card>
+
+        {/* ── CCCD — chỉ hiện cho tenant, read-only ─────────────────────── */}
+        {profile.role === 'tenant' && (
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Giấy tờ tùy thân</CardTitle>
+              <CardDescription>
+                Thông tin căn cước công dân — chỉ chủ trọ mới có thể cập nhật
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <ReadOnlyField label="Số CCCD" value={profile.idCardNumber} />
+                <ReadOnlyField
+                  label="Ngày cấp"
+                  value={
+                    profile.idCardIssuedDate
+                      ? dayjs(profile.idCardIssuedDate).format('DD/MM/YYYY')
+                      : null
+                  }
+                />
+              </div>
+              <ReadOnlyField label="Nơi cấp" value={profile.idCardIssuedPlace} />
+              <ReadOnlyField label="Địa chỉ thường trú" value={profile.permanentAddress} />
+
+              {(profile.idCardFrontUrl || profile.idCardBackUrl) && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Ảnh CCCD</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {profile.idCardFrontUrl && (
+                      <a
+                        href={profile.idCardFrontUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block space-y-1"
+                      >
+                        <p className="text-xs text-muted-foreground">Mặt trước</p>
+                        <img
+                          src={profile.idCardFrontUrl}
+                          alt="CCCD mặt trước"
+                          className="w-full rounded-md border object-cover aspect-video hover:opacity-90 transition-opacity cursor-zoom-in"
+                        />
+                      </a>
+                    )}
+                    {profile.idCardBackUrl && (
+                      <a
+                        href={profile.idCardBackUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block space-y-1"
+                      >
+                        <p className="text-xs text-muted-foreground">Mặt sau</p>
+                        <img
+                          src={profile.idCardBackUrl}
+                          alt="CCCD mặt sau"
+                          className="w-full rounded-md border object-cover aspect-video hover:opacity-90 transition-opacity cursor-zoom-in"
+                        />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </TabsContent>
 
       {/* ── Tab 2: Cập nhật email (OTP flow) ─────────────────────────────── */}

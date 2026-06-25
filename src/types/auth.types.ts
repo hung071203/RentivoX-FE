@@ -12,6 +12,13 @@ export interface User {
   gender: Gender | null
   createdAt: string
   updatedAt: string
+  // Chỉ có khi role === 'tenant'
+  idCardNumber?: string | null
+  idCardIssuedDate?: string | null
+  idCardIssuedPlace?: string | null
+  permanentAddress?: string | null
+  idCardFrontUrl?: string | null
+  idCardBackUrl?: string | null
 }
 
 export interface LoginRequest {
