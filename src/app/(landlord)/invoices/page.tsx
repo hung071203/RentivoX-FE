@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { MoreHorizontal, Plus, FileText, X } from "lucide-react";
+import { MoreHorizontal, Plus, FileText, X, CreditCard } from "lucide-react";
 import PageHeader from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -53,17 +55,20 @@ import {
   useInvoice,
   useCancelInvoice,
 } from "@/hooks/useInvoices";
+import { useRecordPayment } from "@/hooks/usePayments";
+import { paymentsApi } from "@/apis/payments.api";
 import { invoicesApi } from "@/apis/invoices.api";
 import { useProperties } from "@/hooks/useProperties";
 import { useContracts } from "@/hooks/useContracts";
 import { getErrorMessage } from "@/utils/error";
 import { formatCurrency, formatDate, formatPeriod } from "@/utils/format";
-import { INVOICE_STATUS_LABEL } from "@/constants/enums";
+import { INVOICE_STATUS_LABEL, PAYMENT_METHOD_LABEL } from "@/constants/enums";
 import type {
   Invoice,
   InvoiceStatus,
   GetInvoicesParams,
 } from "@/types/invoice.types";
+import type { PaymentMethod } from "@/types/payment.types";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -495,9 +500,179 @@ function CancelDialog({
   );
 }
 
+// ─── Quick Payment Sheet ──────────────────────────────────────────────────────
+
+function QuickPaymentSheet({
+  invoice,
+  open,
+  onClose,
+}: {
+  invoice: Invoice | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { mutate: record, isPending } = useRecordPayment();
+
+  const [paidAmount, setPaidAmount] = useState(0);
+  const [amount, setAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (!invoice) return;
+
+    paymentsApi
+      .getAll({ invoiceId: invoice.id, limit: 100 })
+      .then((res) => {
+        const paid = res.items.reduce((sum, p) => sum + Number(p.amount), 0);
+        setPaidAmount(paid);
+        setAmount(String(Math.max(0, Number(invoice.totalAmount) - paid)));
+      })
+      .catch(() => {
+        setPaidAmount(0);
+        setAmount(String(invoice.totalAmount));
+      });
+  }, [invoice]);
+
+  function handleClose() {
+    setPaidAmount(0);
+    setAmount("");
+    setPaymentMethod("cash");
+    setNotes("");
+    onClose();
+  }
+
+  function handleSubmit() {
+    if (!invoice) return;
+    const amountNum = parseInt(amount, 10);
+    if (!amountNum || amountNum <= 0) {
+      toast.error("Vui lòng nhập số tiền hợp lệ");
+      return;
+    }
+    record(
+      {
+        invoiceId: invoice.id,
+        amount: amountNum,
+        paymentMethod,
+        notes: notes || undefined,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Ghi nhận thanh toán thành công");
+          handleClose();
+        },
+        onError: (err) => toast.error(getErrorMessage(err)),
+      },
+    );
+  }
+
+  if (!invoice) return null;
+
+  const total = Number(invoice.totalAmount);
+  const remaining = Math.max(0, total - paidAmount);
+  const amountNum = parseInt(amount, 10) || 0;
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+        <SheetHeader className="px-6 py-5 border-b">
+          <SheetTitle>Ghi nhận thanh toán</SheetTitle>
+          <SheetDescription>
+            {invoice.invoiceNumber ?? formatPeriod(invoice.period)} ·{" "}
+            {formatCurrency(total)}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+          {/* Tóm tắt hóa đơn */}
+          <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-2">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tổng hóa đơn</span>
+              <span className="font-medium">{formatCurrency(total)}</span>
+            </div>
+            {paidAmount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Đã thanh toán</span>
+                <span className="text-emerald-600 font-medium">
+                  {formatCurrency(paidAmount)}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between border-t pt-2">
+              <span className="font-medium">Còn lại</span>
+              <span className="font-semibold text-primary">
+                {formatCurrency(remaining)}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Số tiền (đ) <span className="text-destructive">*</span>
+            </label>
+            <Input
+              type="number"
+              min={1}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Nhập số tiền..."
+            />
+            {amountNum > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {formatCurrency(amountNum)}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Phương thức <span className="text-destructive">*</span>
+            </label>
+            <Select
+              value={paymentMethod}
+              onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(["cash", "transfer", "other"] as PaymentMethod[]).map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {PAYMENT_METHOD_LABEL[m]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Ghi chú</label>
+            <Input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ghi chú thêm (không bắt buộc)..."
+              maxLength={500}
+            />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t flex items-center justify-end gap-3 bg-muted/30">
+          <Button variant="outline" onClick={handleClose}>
+            Hủy
+          </Button>
+          <Button onClick={handleSubmit} disabled={isPending}>
+            {isPending ? "Đang lưu..." : "Ghi nhận"}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function InvoicesPage() {
+  const searchParams = useSearchParams();
   const [params, setParams] = useState<GetInvoicesParams>({
     page: 1,
     limit: 20,
@@ -510,6 +685,12 @@ export default function InvoicesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [cancelInvoice, setCancelInvoice] = useState<Invoice | null>(null);
+  const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
+
+  useEffect(() => {
+    const invoiceId = searchParams.get("invoiceId");
+    if (invoiceId) setDetailId(invoiceId);
+  }, [searchParams]);
 
   const { data, isLoading } = useInvoices(params);
   const { data: propertiesData } = useProperties({ limit: 100 });
@@ -652,7 +833,7 @@ export default function InvoicesPage() {
                 <TableHead className="text-right">Tổng tiền</TableHead>
                 <TableHead>Trạng thái</TableHead>
                 <TableHead>Hạn thanh toán</TableHead>
-                <TableHead />
+                <TableHead className="pr-4 text-right">Hành động</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -709,7 +890,7 @@ export default function InvoicesPage() {
                         <InvoiceStatusBadge status={inv.status} />
                       </TableCell>
                       <TableCell>{formatDate(inv.dueDate)}</TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -724,15 +905,26 @@ export default function InvoicesPage() {
                             <DropdownMenuItem
                               onClick={() => setDetailId(inv.id)}
                             >
-                              <FileText className="h-4 w-4 mr-2" />
+                              <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
                               Xem chi tiết
                             </DropdownMenuItem>
+                            {inv.status === "unpaid" && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => setPaymentInvoice(inv)}
+                                >
+                                  <CreditCard className="h-4 w-4 mr-2 text-muted-foreground" />
+                                  Ghi nhận thanh toán
+                                </DropdownMenuItem>
+                              </>
+                            )}
                             {inv.status !== "paid" &&
                               inv.status !== "cancelled" && (
                                 <>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
-                                    className="text-destructive"
+                                    className="text-destructive focus:text-destructive"
                                     onClick={() => setCancelInvoice(inv)}
                                   >
                                     Hủy hóa đơn
@@ -797,6 +989,11 @@ export default function InvoicesPage() {
         invoice={cancelInvoice}
         open={!!cancelInvoice}
         onClose={() => setCancelInvoice(null)}
+      />
+      <QuickPaymentSheet
+        invoice={paymentInvoice}
+        open={!!paymentInvoice}
+        onClose={() => setPaymentInvoice(null)}
       />
     </div>
   );

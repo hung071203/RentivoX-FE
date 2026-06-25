@@ -1,29 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { paymentsApi } from '@/apis/payments.api'
-import type { CreatePaymentDto } from '@/types/payment.types'
+import type { CreatePaymentPayload, GetPaymentsParams } from '@/types/payment.types'
 
-export function usePayments(invoiceId?: string) {
+export function usePayments(params?: GetPaymentsParams) {
   return useQuery({
-    queryKey: ['payments', { invoiceId }],
-    queryFn: () => paymentsApi.getAll(invoiceId),
+    queryKey: ['payments', params],
+    queryFn: () => paymentsApi.getAll(params),
   })
 }
 
-export function useCreatePayment() {
+export function useRecordPayment() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: CreatePaymentDto) => paymentsApi.create(data),
+    mutationFn: (data: CreatePaymentPayload) => paymentsApi.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['payments'] })
       qc.invalidateQueries({ queryKey: ['invoices'] })
     },
-  })
-}
-
-export function useDeletePayment() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => paymentsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['payments'] }),
   })
 }
