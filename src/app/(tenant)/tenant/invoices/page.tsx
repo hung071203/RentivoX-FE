@@ -291,7 +291,6 @@ export default function TenantInvoicesPage() {
                 <TableHead className="text-right">Tổng tiền</TableHead>
                 <TableHead>Trạng thái</TableHead>
                 <TableHead>Hạn TT</TableHead>
-                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -331,11 +330,6 @@ export default function TenantInvoicesPage() {
                       </TableCell>
                       <TableCell className={cn('text-sm', isOverdue ? 'text-red-600 font-medium' : 'text-muted-foreground')}>
                         {formatDate(inv.dueDate)}
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                        </Button>
                       </TableCell>
                     </TableRow>
                   )
