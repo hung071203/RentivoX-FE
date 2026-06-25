@@ -629,7 +629,12 @@ function AmendmentTab({ amendments }: { amendments?: ContractAmendment[] }) {
       </div>
 
       {/* ── Amendment Detail Dialog ─────────────────────────────────────────── */}
-      <Dialog open={!!selected} onOpenChange={(o) => { if (!o) setSelected(null); }}>
+      <Dialog
+        open={!!selected}
+        onOpenChange={(o) => {
+          if (!o) setSelected(null);
+        }}
+      >
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{selected?.title}</DialogTitle>
@@ -641,9 +646,13 @@ function AmendmentTab({ amendments }: { amendments?: ContractAmendment[] }) {
                   </span>
                 )}
                 {selected?.isApplied ? (
-                  <span className="text-emerald-600 text-xs font-medium">Đã áp dụng</span>
+                  <span className="text-emerald-600 text-xs font-medium">
+                    Đã áp dụng
+                  </span>
                 ) : (
-                  <span className="text-amber-600 text-xs font-medium">Chờ áp dụng</span>
+                  <span className="text-amber-600 text-xs font-medium">
+                    Chờ áp dụng
+                  </span>
                 )}
               </span>
             </DialogDescription>
@@ -654,19 +663,31 @@ function AmendmentTab({ amendments }: { amendments?: ContractAmendment[] }) {
               {/* Thông tin chính */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Ngày hiệu lực</p>
-                  <p className="font-medium">{formatDate(selected.effectiveDate)}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">
+                    Ngày hiệu lực
+                  </p>
+                  <p className="font-medium">
+                    {formatDate(selected.effectiveDate)}
+                  </p>
                 </div>
                 {selected.newRentAmount !== null && (
                   <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Tiền phòng mới</p>
-                    <p className="font-medium">{formatCurrency(selected.newRentAmount)}</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">
+                      Tiền phòng mới
+                    </p>
+                    <p className="font-medium">
+                      {formatCurrency(selected.newRentAmount)}
+                    </p>
                   </div>
                 )}
                 {selected.newEndDate && (
                   <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Ngày kết thúc mới</p>
-                    <p className="font-medium">{formatDate(selected.newEndDate)}</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">
+                      Ngày kết thúc mới
+                    </p>
+                    <p className="font-medium">
+                      {formatDate(selected.newEndDate)}
+                    </p>
                   </div>
                 )}
               </div>
@@ -928,8 +949,7 @@ export default function TenantContractsPage() {
                       {formatCurrency(c.rentAmount)}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {formatDate(c.startDate)} –<br />
-                      {formatDate(c.endDate)}
+                      {formatDate(c.startDate)} → {formatDate(c.endDate)}
                     </TableCell>
                     <TableCell>
                       <ContractStatusBadge status={c.status} />
