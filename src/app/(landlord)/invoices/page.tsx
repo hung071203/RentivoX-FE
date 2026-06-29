@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { MoreHorizontal, Plus, FileText, X, CreditCard } from "lucide-react";
+import { MoreHorizontal, Plus, FileText, X, CreditCard, Download, Loader2 } from "lucide-react";
 import PageHeader from "@/components/common/PageHeader";
 import { SortableHead } from "@/components/common/SortableHead";
 import { Button } from "@/components/ui/button";
@@ -106,6 +106,8 @@ function InvoiceDetailSheet({
   onClose: () => void;
 }) {
   const { data: invoice } = useInvoice(invoiceId ?? "");
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   if (!invoice) return null;
 
   const contract = invoice.contract;
@@ -113,6 +115,23 @@ function InvoiceDetailSheet({
   const property = room?.property;
   const owner = contract?.owner;
   const items = invoice.items ?? [];
+
+  async function handleExportPdf() {
+    setPdfLoading(true);
+    try {
+      const blob = await invoicesApi.exportPdf(invoice!.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${invoice!.invoiceNumber ?? "hoa-don"}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Không thể xuất PDF, vui lòng thử lại");
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   return (
     <Sheet
@@ -123,11 +142,29 @@ function InvoiceDetailSheet({
     >
       <SheetContent className="w-full sm:max-w-lg flex flex-col gap-0 p-0">
         <SheetHeader className="px-6 py-5 border-b">
-          <SheetTitle>{invoice.invoiceNumber ?? "Chi tiết hóa đơn"}</SheetTitle>
-          <SheetDescription>
-            {formatPeriod(invoice.period)} · Phòng {room?.roomNumber} ·{" "}
-            {property?.name}
-          </SheetDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <SheetTitle>{invoice.invoiceNumber ?? "Chi tiết hóa đơn"}</SheetTitle>
+              <SheetDescription>
+                {formatPeriod(invoice.period)} · Phòng {room?.roomNumber} ·{" "}
+                {property?.name}
+              </SheetDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={handleExportPdf}
+              disabled={pdfLoading}
+            >
+              {pdfLoading ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-1.5" />
+              )}
+              Xuất PDF
+            </Button>
+          </div>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
@@ -692,6 +729,20 @@ export default function InvoicesPage() {
   const [cancelInvoice, setCancelInvoice] = useState<Invoice | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
 
+  async function handleRowExportPdf(id: string) {
+    try {
+      const blob = await invoicesApi.exportPdf(id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `hoa-don-${id.slice(0, 8)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Không thể xuất PDF, vui lòng thử lại");
+    }
+  }
+
   useEffect(() => {
     const invoiceId = searchParams.get("invoiceId");
     if (invoiceId) setDetailId(invoiceId);
@@ -906,12 +957,18 @@ export default function InvoicesPage() {
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem
                               onClick={() => setDetailId(inv.id)}
                             >
                               <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
                               Xem chi tiết
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleRowExportPdf(inv.id)}
+                            >
+                              <Download className="h-4 w-4 mr-2 text-muted-foreground" />
+                              Xuất PDF
                             </DropdownMenuItem>
                             {inv.status === "unpaid" && (
                               <>

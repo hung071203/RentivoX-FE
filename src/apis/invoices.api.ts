@@ -14,4 +14,7 @@ export const invoicesApi = {
 
   cancel: (id: string) =>
     api.patch<Invoice>(`/landlord/invoices/${id}/cancel`).then((r) => r.data),
+
+  exportPdf: (id: string) =>
+    api.get(`/landlord/invoices/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data as Blob),
 }
