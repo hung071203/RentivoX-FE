@@ -13,6 +13,9 @@ import {
   Trash2,
   Gauge,
   X,
+  Upload,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -292,6 +295,12 @@ export default function MeterReadingsPage() {
   const [editReading, setEditReading] = useState<MeterReading | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [templateLoading, setTemplateLoading] = useState(false);
+  const [importErrors, setImportErrors] = useState<{ row: number; message: string }[]>([]);
+
   // Room search state for create form
   const [roomSearchRaw, setRoomSearchRaw] = useState("");
   const [roomSearch, setRoomSearch] = useState("");
@@ -375,6 +384,48 @@ export default function MeterReadingsPage() {
   }, [roomsData, selectedRoomCache]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
+  async function handleDownloadTemplate() {
+    setTemplateLoading(true);
+    try {
+      const blob = await meterReadingsApi.downloadTemplate();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mau-chi-so-dich-vu.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setTemplateLoading(false);
+    }
+  }
+
+  async function handleImportExcel() {
+    if (!importFile) return;
+    setImportLoading(true);
+    setImportErrors([]);
+    try {
+      const { success, errors } = await meterReadingsApi.importExcel(importFile);
+      if (errors.length > 0) setImportErrors(errors);
+      if (success > 0) {
+        toast.success(`Nhập thành công ${success} dòng${errors.length ? `, ${errors.length} lỗi` : ""}`);
+        qc.invalidateQueries({ queryKey: ["meter-readings"] });
+      }
+      if (success === 0 && errors.length > 0) {
+        toast.error("Tất cả dòng đều có lỗi");
+      }
+      if (errors.length === 0) {
+        setImportDialogOpen(false);
+        setImportFile(null);
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
   function handleFilterYearChange(y: string) {
     setFilterYear(y);
     setFilterMonth("");
@@ -476,10 +527,20 @@ export default function MeterReadingsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <PageHeader title="Chỉ số dịch vụ" description="Ghi chỉ số dịch vụ đo đếm hàng tháng" />
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-2" />
-          Ghi chỉ số
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { setImportErrors([]); setImportFile(null); setImportDialogOpen(true); }}
+          >
+            <Upload className="h-4 w-4 mr-1.5" />
+            Nhập Excel
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" />
+            Ghi chỉ số
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -879,6 +940,70 @@ export default function MeterReadingsPage() {
             </Button>
             <Button variant="destructive" onClick={onDelete} disabled={deleteMR.isPending}>
               {deleteMR.isPending ? "Đang xóa..." : "Xóa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Import Excel Dialog ──────────────────────────────────────────────── */}
+      <Dialog
+        open={importDialogOpen}
+        onOpenChange={(o) => { if (!o) { setImportDialogOpen(false); setImportErrors([]); } }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nhập chỉ số từ Excel</DialogTitle>
+            <DialogDescription>
+              Tải file mẫu, điền dữ liệu rồi upload để nhập hàng loạt.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Bước 1: Tải file mẫu</p>
+              <Button variant="outline" size="sm" onClick={handleDownloadTemplate} disabled={templateLoading}>
+                {templateLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                ) : (
+                  <Download className="h-4 w-4 mr-1.5" />
+                )}
+                Tải file mẫu
+              </Button>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Bước 2: Upload file đã điền</p>
+              <label className="flex items-center gap-2 w-full cursor-pointer">
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  className="hidden"
+                  onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                />
+                <div className="flex items-center gap-2 px-3 py-2 border border-input rounded-md text-sm hover:bg-accent transition-colors w-full">
+                  <Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className={importFile ? 'text-foreground' : 'text-muted-foreground'}>
+                    {importFile ? importFile.name : 'Chọn file .xlsx...'}
+                  </span>
+                </div>
+              </label>
+            </div>
+            {importErrors.length > 0 && (
+              <div className="border border-destructive/30 rounded-md p-3 bg-destructive/5 max-h-40 overflow-y-auto">
+                <p className="text-sm font-medium text-destructive mb-2">Các dòng lỗi:</p>
+                {importErrors.map((e) => (
+                  <p key={e.row} className="text-xs text-destructive">
+                    Dòng {e.row}: {e.message}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setImportDialogOpen(false); setImportErrors([]); }}>
+              Đóng
+            </Button>
+            <Button onClick={handleImportExcel} disabled={!importFile || importLoading}>
+              {importLoading && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+              Nhập
             </Button>
           </DialogFooter>
         </DialogContent>

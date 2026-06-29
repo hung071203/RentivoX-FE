@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { MoreHorizontal, Plus, FileText, X, CreditCard, Download, Loader2 } from "lucide-react";
+import { MoreHorizontal, Plus, FileText, X, CreditCard, Download, Loader2, FileSpreadsheet } from "lucide-react";
 import PageHeader from "@/components/common/PageHeader";
 import { SortableHead } from "@/components/common/SortableHead";
 import { Button } from "@/components/ui/button";
@@ -728,6 +728,36 @@ export default function InvoicesPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [cancelInvoice, setCancelInvoice] = useState<Invoice | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
+  const [excelLoading, setExcelLoading] = useState(false);
+
+  async function handleExportExcel() {
+    setExcelLoading(true);
+    try {
+      const blob = await invoicesApi.exportExcel({
+        propertyId: propertyFilter !== "all" ? propertyFilter : undefined,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        year: yearFilter !== "all" ? Number(yearFilter) : undefined,
+        month: monthFilter !== "" ? Number(monthFilter) : undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const namePart =
+        yearFilter !== "all" && monthFilter !== ""
+          ? `${yearFilter}-${monthFilter}`
+          : yearFilter !== "all"
+          ? yearFilter
+          : "";
+      a.download = namePart ? `hoa-don-${namePart}.xlsx` : "hoa-don.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Xuất Excel thành công");
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setExcelLoading(false);
+    }
+  }
 
   async function handleRowExportPdf(id: string) {
     try {
@@ -867,6 +897,23 @@ export default function InvoicesPage() {
                 <SelectItem value="cancelled">Đã hủy</SelectItem>
               </SelectContent>
             </Select>
+
+            <div className="ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={handleExportExcel}
+                disabled={excelLoading}
+              >
+                {excelLoading ? (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                )}
+                Xuất Excel
+              </Button>
+            </div>
           </div>
         </CardHeader>
 

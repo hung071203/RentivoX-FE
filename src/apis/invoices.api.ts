@@ -17,4 +17,7 @@ export const invoicesApi = {
 
   exportPdf: (id: string) =>
     api.get(`/landlord/invoices/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data as Blob),
+
+  exportExcel: (params: { propertyId?: string; status?: string; year?: number; month?: number }) =>
+    api.get('/landlord/invoices/export', { params, responseType: 'blob' }).then((r) => r.data as Blob),
 }

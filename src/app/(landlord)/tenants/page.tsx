@@ -15,7 +15,12 @@ import {
   Camera,
   Lock,
   Unlock,
+  FileSpreadsheet,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
+import { tenantsApi } from "@/apis/tenants.api";
+import { getErrorMessage } from "@/utils/error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,7 +76,6 @@ import type {
   Gender,
   GetTenantsParams,
   CreateTenantPayload,
-  UpdateTenantPayload,
 } from "@/types/tenant.types";
 import { SortableHead } from "@/components/common/SortableHead";
 
@@ -270,6 +274,7 @@ export default function TenantsPage() {
 
   const [params, setParams] = useState<GetTenantsParams>({ page: 1, limit: 20 });
   const [search, setSearch] = useState("");
+  const [excelLoading, setExcelLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editTenant, setEditTenant] = useState<Tenant | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -309,6 +314,27 @@ export default function TenantsPage() {
 
   const emailC = watchC("email");
   const emailE = watchE("email");
+
+  async function handleExportExcel() {
+    setExcelLoading(true);
+    try {
+      const blob = await tenantsApi.exportExcel({
+        search: search || undefined,
+        hasAccount: params.hasAccount,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "khach-thue.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Xuất Excel thành công");
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setExcelLoading(false);
+    }
+  }
 
   function handleSearch(value: string) {
     setSearch(value);
@@ -455,6 +481,23 @@ export default function TenantsPage() {
                 <SelectItem value="no">Chưa có tài khoản</SelectItem>
               </SelectContent>
             </Select>
+
+            <div className="ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={handleExportExcel}
+                disabled={excelLoading}
+              >
+                {excelLoading ? (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                )}
+                Xuất Excel
+              </Button>
+            </div>
           </div>
         </CardHeader>
 

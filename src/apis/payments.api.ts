@@ -17,4 +17,7 @@ export const paymentsApi = {
 
   create: (data: CreatePaymentPayload) =>
     api.post<Payment>('/landlord/payments', data).then((r) => r.data),
+
+  exportExcel: (params: { propertyId?: string; paymentMethod?: string; source?: string; referenceCode?: string }) =>
+    api.get('/landlord/payments/export', { params, responseType: 'blob' }).then((r) => r.data as Blob),
 }

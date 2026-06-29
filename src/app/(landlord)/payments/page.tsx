@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { MoreHorizontal, Plus, CreditCard, FileText } from "lucide-react";
+import { MoreHorizontal, Plus, CreditCard, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/common/PageHeader";
 import { SortableHead } from "@/components/common/SortableHead";
@@ -506,6 +506,30 @@ export default function PaymentsPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [detailPayment, setDetailPayment] = useState<Payment | null>(null);
+  const [excelLoading, setExcelLoading] = useState(false);
+
+  async function handleExportExcel() {
+    setExcelLoading(true);
+    try {
+      const blob = await paymentsApi.exportExcel({
+        propertyId: propertyFilter !== "all" ? propertyFilter : undefined,
+        paymentMethod: methodFilter !== "all" ? methodFilter : undefined,
+        source: sourceFilter !== "all" ? sourceFilter : undefined,
+        referenceCode: refCode || undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "thanh-toan.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Xuất Excel thành công");
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setExcelLoading(false);
+    }
+  }
 
   useEffect(() => {
     const t = setTimeout(() => setRefCode(refCodeRaw), 400);
@@ -592,6 +616,23 @@ export default function PaymentsPage() {
               value={refCodeRaw}
               onChange={(e) => setRefCodeRaw(e.target.value)}
             />
+
+            <div className="ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={handleExportExcel}
+                disabled={excelLoading}
+              >
+                {excelLoading ? (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                )}
+                Xuất Excel
+              </Button>
+            </div>
           </div>
         </CardHeader>
 

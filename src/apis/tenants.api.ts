@@ -21,6 +21,9 @@ export const tenantsApi = {
   toggleActive: (id: string) =>
     api.patch<Tenant>(`/landlord/tenants/${id}/toggle-active`).then((r) => r.data),
 
+  exportExcel: (params: { search?: string; hasAccount?: boolean }) =>
+    api.get('/landlord/tenants/export', { params, responseType: 'blob' }).then((r) => r.data as Blob),
+
   uploadIdCard: (id: string, side: 'front' | 'back', file: File) => {
     const formData = new FormData()
     formData.append('file', file)

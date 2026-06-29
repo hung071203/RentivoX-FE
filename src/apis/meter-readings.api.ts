@@ -27,4 +27,20 @@ export const meterReadingsApi = {
   remove(id: string) {
     return api.delete(`/landlord/meter-readings/${id}`)
   },
+
+  downloadTemplate() {
+    return api.get('/landlord/meter-readings/import/template', { responseType: 'blob' }).then((r) => r.data as Blob)
+  },
+
+  importExcel(file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api
+      .post<{ success: number; errors: { row: number; message: string }[] }>(
+        '/landlord/meter-readings/import',
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      )
+      .then((r) => r.data)
+  },
 }
