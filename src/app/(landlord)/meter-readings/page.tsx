@@ -14,7 +14,6 @@ import {
   Gauge,
   X,
   Upload,
-  Download,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -67,6 +66,8 @@ import { useRooms, useRoom } from "@/hooks/useRooms";
 import { useServices } from "@/hooks/useServices";
 import { useProperties } from "@/hooks/useProperties";
 import { meterReadingsApi } from "@/apis/meter-readings.api";
+import { roomsApi } from "@/apis/rooms.api";
+import { servicesApi } from "@/apis/services.api";
 import { formatCurrency, formatPeriod } from "@/utils/format";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/error";
@@ -76,6 +77,16 @@ import type { MeterReading, GetMeterReadingsParams } from "@/types/meter-reading
 
 type ServiceRowData = {
   id: string;
+  serviceId: string;
+  valueStart: string;
+  valueEnd: string;
+  err?: string;
+};
+
+type BatchRowData = {
+  id: string;
+  propertyId: string;
+  roomId: string;
   serviceId: string;
   valueStart: string;
   valueEnd: string;
@@ -277,6 +288,167 @@ function ServiceRow({
   );
 }
 
+// ─── BatchReadingRow ──────────────────────────────────────────────────────────
+
+function BatchReadingRow({
+  row,
+  properties,
+  period,
+  onChange,
+  onRemove,
+  canRemove,
+}: {
+  row: BatchRowData;
+  properties: { id: string; name: string }[];
+  period: string;
+  onChange: (updates: Partial<BatchRowData>) => void;
+  onRemove: () => void;
+  canRemove: boolean;
+}) {
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; });
+
+  const { data: roomsData } = useQuery({
+    queryKey: ["batch-rooms", row.propertyId],
+    queryFn: () => roomsApi.getAll({ propertyId: row.propertyId, status: "occupied", limit: 100 }),
+    enabled: !!row.propertyId,
+    staleTime: 30_000,
+  });
+
+  const { data: servicesData } = useQuery({
+    queryKey: ["batch-services", row.roomId],
+    queryFn: () => servicesApi.getAll({ roomId: row.roomId, type: "metered", isActive: true, limit: 100 }),
+    enabled: !!row.roomId,
+    staleTime: 30_000,
+  });
+
+  const prevPeriod = useMemo(() => {
+    if (!period) return null;
+    const [y, m] = period.split("-").map(Number);
+    const pm = m === 1 ? 12 : m - 1;
+    const py = m === 1 ? y - 1 : y;
+    return `${py}-${String(pm).padStart(2, "0")}-01`;
+  }, [period]);
+
+  const { data: prevData } = useQuery({
+    queryKey: ["mr-prev", row.roomId, row.serviceId, prevPeriod],
+    queryFn: () =>
+      meterReadingsApi.getAll({ roomId: row.roomId, serviceId: row.serviceId, period: prevPeriod!, limit: 1 }),
+    enabled: !!row.roomId && !!row.serviceId && !!prevPeriod,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (prevData === undefined) return;
+    const prev = prevData.items[0];
+    onChangeRef.current({ valueStart: prev ? String(Number(prev.valueEnd)) : "0" });
+  }, [prevData]);
+
+  const rooms = roomsData?.items ?? [];
+  const services = servicesData?.items ?? [];
+
+  return (
+    <div className="border rounded-lg p-3 space-y-2.5 bg-background">
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <Select
+            value={row.propertyId}
+            onValueChange={(v) =>
+              onChange({ propertyId: v, roomId: "", serviceId: "", valueStart: "0", valueEnd: "0", err: undefined })
+            }
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Nhà trọ" />
+            </SelectTrigger>
+            <SelectContent>
+              {properties.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <Select
+            value={row.roomId}
+            onValueChange={(v) =>
+              onChange({ roomId: v, serviceId: "", valueStart: "0", valueEnd: "0", err: undefined })
+            }
+            disabled={!row.propertyId}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={!row.propertyId ? "Phòng" : rooms.length === 0 ? "Không có phòng" : "Chọn phòng"} />
+            </SelectTrigger>
+            <SelectContent>
+              {rooms.map((r) => (
+                <SelectItem key={r.id} value={r.id}>Phòng {r.roomNumber}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <Select
+            value={row.serviceId}
+            onValueChange={(v) =>
+              onChange({ serviceId: v, valueStart: "0", valueEnd: "0", err: undefined })
+            }
+            disabled={!row.roomId}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={!row.roomId ? "Dịch vụ" : services.length === 0 ? "Không có dịch vụ" : "Chọn dịch vụ"} />
+            </SelectTrigger>
+            <SelectContent>
+              {services.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}{s.unit ? ` (${s.unit})` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {canRemove ? (
+          <Button type="button" variant="ghost" size="sm" className="h-9 w-8 p-0 shrink-0" onClick={onRemove}>
+            <X className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        ) : (
+          <div className="w-8 shrink-0" />
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Chỉ số đầu kỳ</Label>
+          <Input
+            type="number"
+            min={0}
+            step={0.01}
+            value={row.valueStart}
+            onChange={(e) => onChange({ valueStart: e.target.value })}
+            className="h-9"
+            disabled={!row.serviceId}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Chỉ số cuối kỳ</Label>
+          <Input
+            type="number"
+            min={0}
+            step={0.01}
+            value={row.valueEnd}
+            onChange={(e) => onChange({ valueEnd: e.target.value, err: undefined })}
+            className={`h-9${row.err ? " border-destructive" : ""}`}
+            disabled={!row.serviceId}
+          />
+        </div>
+      </div>
+
+      {row.err && <p className="text-xs text-destructive">{row.err}</p>}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MeterReadingsPage() {
@@ -295,11 +467,13 @@ export default function MeterReadingsPage() {
   const [editReading, setEditReading] = useState<MeterReading | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importLoading, setImportLoading] = useState(false);
-  const [templateLoading, setTemplateLoading] = useState(false);
-  const [importErrors, setImportErrors] = useState<{ row: number; message: string }[]>([]);
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchPeriod, setBatchPeriod] = useState("");
+  const [batchPeriodErr, setBatchPeriodErr] = useState("");
+  const [batchRows, setBatchRows] = useState<BatchRowData[]>([
+    { id: "1", propertyId: "", roomId: "", serviceId: "", valueStart: "0", valueEnd: "0" },
+  ]);
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
 
   // Room search state for create form
   const [roomSearchRaw, setRoomSearchRaw] = useState("");
@@ -384,45 +558,55 @@ export default function MeterReadingsPage() {
   }, [roomsData, selectedRoomCache]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
-  async function handleDownloadTemplate() {
-    setTemplateLoading(true);
-    try {
-      const blob = await meterReadingsApi.downloadTemplate();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "mau-chi-so-dich-vu.xlsx";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setTemplateLoading(false);
-    }
+  function openBatchDialog() {
+    setBatchPeriod("");
+    setBatchPeriodErr("");
+    setBatchRows([{ id: "1", propertyId: "", roomId: "", serviceId: "", valueStart: "0", valueEnd: "0" }]);
+    setBatchOpen(true);
   }
 
-  async function handleImportExcel() {
-    if (!importFile) return;
-    setImportLoading(true);
-    setImportErrors([]);
-    try {
-      const { success, errors } = await meterReadingsApi.importExcel(importFile);
-      if (errors.length > 0) setImportErrors(errors);
-      if (success > 0) {
-        toast.success(`Nhập thành công ${success} dòng${errors.length ? `, ${errors.length} lỗi` : ""}`);
-        qc.invalidateQueries({ queryKey: ["meter-readings"] });
-      }
-      if (success === 0 && errors.length > 0) {
-        toast.error("Tất cả dòng đều có lỗi");
-      }
-      if (errors.length === 0) {
-        setImportDialogOpen(false);
-        setImportFile(null);
-      }
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setImportLoading(false);
+  async function onBatchSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    let valid = true;
+    if (!batchPeriod) { setBatchPeriodErr("Vui lòng chọn kỳ"); valid = false; }
+
+    const validated = batchRows.map((row) => {
+      if (!row.propertyId) return { ...row, err: "Vui lòng chọn nhà trọ" };
+      if (!row.roomId) return { ...row, err: "Vui lòng chọn phòng" };
+      if (!row.serviceId) return { ...row, err: "Vui lòng chọn dịch vụ" };
+      if (Number(row.valueEnd) < Number(row.valueStart))
+        return { ...row, err: "Chỉ số cuối không được nhỏ hơn đầu kỳ" };
+      return { ...row, err: undefined };
+    });
+    setBatchRows(validated);
+    if (!valid || validated.some((r) => r.err)) return;
+
+    setBatchSubmitting(true);
+    const results = await Promise.allSettled(
+      batchRows.map((row) =>
+        meterReadingsApi.create({
+          roomId: row.roomId,
+          serviceId: row.serviceId,
+          period: `${batchPeriod}-01`,
+          valueStart: Number(row.valueStart),
+          valueEnd: Number(row.valueEnd),
+        }),
+      ),
+    );
+    setBatchSubmitting(false);
+    qc.invalidateQueries({ queryKey: ["meter-readings"] });
+
+    const ok = results.filter((r) => r.status === "fulfilled").length;
+    const fail = results.filter((r) => r.status === "rejected");
+
+    if (fail.length === 0) {
+      toast.success(ok === 1 ? "Ghi chỉ số thành công" : `Đã ghi ${ok} chỉ số thành công`);
+      setBatchOpen(false);
+    } else if (ok > 0) {
+      toast.info(`Đã ghi ${ok}/${batchRows.length} chỉ số. ${fail.length} chỉ số gặp lỗi.`);
+      setBatchRows((prev) => prev.filter((_, i) => results[i]?.status === "rejected"));
+    } else {
+      toast.error(getErrorMessage((fail[0] as PromiseRejectedResult).reason));
     }
   }
 
@@ -528,13 +712,9 @@ export default function MeterReadingsPage() {
       <div className="flex items-center justify-between">
         <PageHeader title="Chỉ số dịch vụ" description="Ghi chỉ số dịch vụ đo đếm hàng tháng" />
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { setImportErrors([]); setImportFile(null); setImportDialogOpen(true); }}
-          >
+          <Button variant="outline" size="sm" onClick={openBatchDialog}>
             <Upload className="h-4 w-4 mr-1.5" />
-            Nhập Excel
+            Nhập hàng loạt
           </Button>
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4 mr-2" />
@@ -945,67 +1125,85 @@ export default function MeterReadingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Import Excel Dialog ──────────────────────────────────────────────── */}
-      <Dialog
-        open={importDialogOpen}
-        onOpenChange={(o) => { if (!o) { setImportDialogOpen(false); setImportErrors([]); } }}
-      >
-        <DialogContent className="max-w-md">
+      {/* ── Batch Import Dialog ──────────────────────────────────────────────── */}
+      <Dialog open={batchOpen} onOpenChange={(o) => { if (!o) setBatchOpen(false); }}>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Nhập chỉ số từ Excel</DialogTitle>
+            <DialogTitle>Nhập chỉ số hàng loạt</DialogTitle>
             <DialogDescription>
-              Tải file mẫu, điền dữ liệu rồi upload để nhập hàng loạt.
+              Chọn kỳ, nhà trọ, phòng và dịch vụ. Chỉ số đầu tự động điền từ kỳ trước.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">Bước 1: Tải file mẫu</p>
-              <Button variant="outline" size="sm" onClick={handleDownloadTemplate} disabled={templateLoading}>
-                {templateLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-                ) : (
-                  <Download className="h-4 w-4 mr-1.5" />
-                )}
-                Tải file mẫu
-              </Button>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">Bước 2: Upload file đã điền</p>
-              <label className="flex items-center gap-2 w-full cursor-pointer">
-                <input
-                  type="file"
-                  accept=".xlsx"
-                  className="hidden"
-                  onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-                />
-                <div className="flex items-center gap-2 px-3 py-2 border border-input rounded-md text-sm hover:bg-accent transition-colors w-full">
-                  <Upload className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className={importFile ? 'text-foreground' : 'text-muted-foreground'}>
-                    {importFile ? importFile.name : 'Chọn file .xlsx...'}
-                  </span>
+          <form onSubmit={onBatchSubmit}>
+            <div className="space-y-4">
+              <FormField label="Kỳ" error={batchPeriodErr} required>
+                <Select
+                  value={batchPeriod}
+                  onValueChange={(v) => { setBatchPeriod(v); setBatchPeriodErr(""); }}
+                >
+                  <SelectTrigger className={batchPeriodErr ? "border-destructive" : ""}>
+                    <SelectValue placeholder="Chọn tháng" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERIOD_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">
+                    Danh sách <span className="text-destructive ml-0.5">*</span>
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() =>
+                      setBatchRows((r) => [
+                        ...r,
+                        { id: String(Date.now()), propertyId: "", roomId: "", serviceId: "", valueStart: "0", valueEnd: "0" },
+                      ])
+                    }
+                  >
+                    <Plus className="h-3 w-3" />
+                    Thêm dòng
+                  </Button>
                 </div>
-              </label>
-            </div>
-            {importErrors.length > 0 && (
-              <div className="border border-destructive/30 rounded-md p-3 bg-destructive/5 max-h-40 overflow-y-auto">
-                <p className="text-sm font-medium text-destructive mb-2">Các dòng lỗi:</p>
-                {importErrors.map((e) => (
-                  <p key={e.row} className="text-xs text-destructive">
-                    Dòng {e.row}: {e.message}
-                  </p>
-                ))}
+
+                <div className="space-y-3 max-h-[420px] overflow-y-auto pr-0.5">
+                  {batchRows.map((row) => (
+                    <BatchReadingRow
+                      key={row.id}
+                      row={row}
+                      properties={properties}
+                      period={batchPeriod}
+                      onChange={(updates) =>
+                        setBatchRows((prev) =>
+                          prev.map((r) => (r.id === row.id ? { ...r, ...updates } : r)),
+                        )
+                      }
+                      onRemove={() => setBatchRows((prev) => prev.filter((r) => r.id !== row.id))}
+                      canRemove={batchRows.length > 1}
+                    />
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setImportDialogOpen(false); setImportErrors([]); }}>
-              Đóng
-            </Button>
-            <Button onClick={handleImportExcel} disabled={!importFile || importLoading}>
-              {importLoading && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-              Nhập
-            </Button>
-          </DialogFooter>
+            </div>
+
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setBatchOpen(false)}>
+                Hủy
+              </Button>
+              <Button type="submit" disabled={batchSubmitting}>
+                {batchSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+                {batchSubmitting ? "Đang lưu..." : `Lưu ${batchRows.length} chỉ số`}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
