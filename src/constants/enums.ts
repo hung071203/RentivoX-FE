@@ -51,3 +51,15 @@ export const GENDER_LABEL: Record<string, string> = {
   female: 'Nữ',
   other: 'Khác',
 }
+
+export const NOTIFICATION_TYPE_LABEL: Record<string, string> = {
+  invoice_created: 'Hóa đơn mới',
+  invoice_paid: 'Hóa đơn thanh toán',
+  invoice_due_soon: 'Hóa đơn sắp đến hạn',
+  contract_expiring_soon: 'Hợp đồng sắp hết hạn',
+  contract_expired: 'Hợp đồng hết hạn',
+  contract_terminated: 'Hợp đồng chấm dứt',
+  amendment_applied: 'Phụ lục áp dụng',
+  payment_recorded: 'Ghi nhận thanh toán',
+  system_announcement: 'Thông báo hệ thống',
+}

@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from '@/stores/auth.store'
 import { useLogout, useMe } from '@/hooks/useAuth'
 import { ROUTES } from '@/constants/routes'
+import NotificationBell from '@/components/notifications/NotificationBell'
 
 function getInitials(name: string | undefined): string {
   if (!name) return 'U'
@@ -26,8 +27,11 @@ export default function Header() {
   const logout = useLogout()
   useMe()
 
+  const showBell = user?.role === 'landlord' || user?.role === 'tenant'
+
   return (
-    <header className="h-14 border-b border-sidebar-border bg-background flex items-center justify-end px-6 shrink-0">
+    <header className="h-14 border-b border-sidebar-border bg-background flex items-center justify-end gap-1 px-6 shrink-0">
+      {showBell && <NotificationBell />}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-9 gap-2 px-2.5">

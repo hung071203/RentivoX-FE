@@ -1,12 +1,100 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, Users, Home, BarChart3 } from 'lucide-react'
+import { Building2, Users, Home, BarChart3, Send } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import PageHeader from '@/components/common/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { useAdminDashboard } from '@/hooks/useAdmin'
+import { useBroadcastNotification } from '@/hooks/useNotifications'
 import { ROUTES } from '@/constants/routes'
+
+// ─── Broadcast dialog ─────────────────────────────────────────────────────────
+
+const broadcastSchema = z.object({
+  title: z.string().min(1, 'Tiêu đề không được để trống'),
+  message: z.string().min(1, 'Nội dung không được để trống'),
+  target: z.enum(['all', 'landlord', 'tenant']),
+})
+type BroadcastForm = z.infer<typeof broadcastSchema>
+
+function BroadcastDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const broadcast = useBroadcastNotification()
+  const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<BroadcastForm>({
+    resolver: zodResolver(broadcastSchema),
+    defaultValues: { target: 'all' },
+  })
+
+  function onSubmit(values: BroadcastForm) {
+    broadcast.mutate(values, {
+      onSuccess: () => { reset(); onClose() },
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose() } }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Gửi thông báo hệ thống</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-1">
+          <div className="space-y-1.5">
+            <Label>Tiêu đề <span className="text-destructive">*</span></Label>
+            <Input {...register('title')} placeholder="Nhập tiêu đề thông báo" />
+            {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Nội dung <span className="text-destructive">*</span></Label>
+            <textarea
+              {...register('message')}
+              placeholder="Nhập nội dung thông báo"
+              rows={4}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+            />
+            {errors.message && <p className="text-xs text-destructive">{errors.message.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Đối tượng nhận <span className="text-destructive">*</span></Label>
+            <Select value={watch('target')} onValueChange={(v) => setValue('target', v as 'all' | 'landlord' | 'tenant')}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả người dùng</SelectItem>
+                <SelectItem value="landlord">Chủ trọ</SelectItem>
+                <SelectItem value="tenant">Người thuê</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => { reset(); onClose() }}>
+              Hủy
+            </Button>
+            <Button type="submit" disabled={broadcast.isPending} className="gap-2">
+              <Send className="h-4 w-4" />
+              {broadcast.isPending ? 'Đang gửi...' : 'Gửi thông báo'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
@@ -68,13 +156,21 @@ function OccupancyBar({ occupied, total }: { occupied: number; total: number }) 
 export default function AdminDashboardPage() {
   const router = useRouter()
   const { data, isLoading } = useAdminDashboard()
+  const [broadcastOpen, setBroadcastOpen] = useState(false)
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Tổng quan hệ thống"
-        description="Thống kê toàn bộ hoạt động trên hệ thống"
-      />
+      <BroadcastDialog open={broadcastOpen} onClose={() => setBroadcastOpen(false)} />
+      <div className="flex items-start justify-between gap-4">
+        <PageHeader
+          title="Tổng quan hệ thống"
+          description="Thống kê toàn bộ hoạt động trên hệ thống"
+        />
+        <Button onClick={() => setBroadcastOpen(true)} className="gap-2 shrink-0">
+          <Send className="h-4 w-4" />
+          Gửi thông báo
+        </Button>
+      </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
