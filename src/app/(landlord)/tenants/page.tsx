@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -281,6 +281,13 @@ export default function TenantsPage() {
   const [editTenant, setEditTenant] = useState<Tenant | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewTenant, setViewTenant] = useState<Tenant | null>(null);
+  const [tenantImagesReady, setTenantImagesReady] = useState(false);
+
+  useEffect(() => {
+    if (!viewTenant) { setTenantImagesReady(false); return; }
+    const t = setTimeout(() => setTenantImagesReady(true), 300);
+    return () => clearTimeout(t);
+  }, [viewTenant]);
 
   const { data, isLoading } = useTenants(params);
   const createTenant = useCreateTenant();
@@ -761,7 +768,7 @@ export default function TenantsPage() {
             </div>
 
             {/* Ảnh CCCD */}
-            {(viewTenant?.idCardFrontUrl || viewTenant?.idCardBackUrl) && (
+            {tenantImagesReady && (viewTenant?.idCardFrontUrl || viewTenant?.idCardBackUrl) && (
               <div className="border-t pt-5 space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ảnh CCCD/CMND</p>
                 <div className="grid grid-cols-2 gap-3">
