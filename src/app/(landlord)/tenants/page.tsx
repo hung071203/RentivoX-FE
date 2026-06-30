@@ -777,6 +777,8 @@ export default function TenantsPage() {
                         <img
                           src={viewTenant.idCardFrontUrl}
                           alt="Mặt trước CCCD"
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover hover:opacity-90 transition-opacity"
                         />
                       </a>
@@ -794,6 +796,8 @@ export default function TenantsPage() {
                         <img
                           src={viewTenant.idCardBackUrl}
                           alt="Mặt sau CCCD"
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover hover:opacity-90 transition-opacity"
                         />
                       </a>
