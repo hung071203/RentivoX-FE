@@ -10,6 +10,7 @@ import {
   ChevronRight,
   MoreHorizontal,
   Pencil,
+  Eye,
   Lock,
   Unlock,
   Trash2,
@@ -234,6 +235,7 @@ export default function AdminUsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [viewUser, setViewUser] = useState<User | null>(null);
 
   const { data, isLoading } = useAdminUsers(params);
   const createUser = useCreateUser();
@@ -446,7 +448,7 @@ export default function AdminUsersPage() {
                 </TableRow>
               )}
               {data?.items.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow key={user.id} className="cursor-pointer" onClick={() => setViewUser(user)}>
                   <TableCell className="pl-6 font-medium truncate">
                     {user.fullName}
                   </TableCell>
@@ -465,7 +467,7 @@ export default function AdminUsersPage() {
                   <TableCell className="text-muted-foreground text-sm">
                     {formatDate(user.createdAt)}
                   </TableCell>
-                  <TableCell className="pr-4 text-right">
+                  <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
                     {canManage(currentUser?.role, user.role) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -478,6 +480,11 @@ export default function AdminUsersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem onClick={() => setViewUser(user)}>
+                            <Eye className="h-4 w-4 mr-2 text-muted-foreground" />
+                            Xem chi tiết
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => openEdit(user)}>
                             <Pencil className="h-4 w-4 mr-2 text-muted-foreground" />
                             Chỉnh sửa
@@ -573,6 +580,65 @@ export default function AdminUsersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── User Detail Sheet ─────────────────────────────────────────────────── */}
+      <Sheet
+        open={!!viewUser}
+        onOpenChange={(o) => { if (!o) setViewUser(null); }}
+      >
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 py-5 border-b">
+            <div className="flex items-start justify-between gap-3 pr-10">
+              <div className="min-w-0">
+                <SheetTitle className="truncate">{viewUser?.fullName}</SheetTitle>
+                <SheetDescription className="truncate mt-0.5">{viewUser?.email}</SheetDescription>
+              </div>
+              {viewUser && <RoleBadge role={viewUser.role} />}
+            </div>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <dl className="divide-y divide-border text-sm">
+              <div className="flex items-start gap-3 py-3 first:pt-0">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Trạng thái</dt>
+                <dd>{viewUser && <StatusBadge isActive={viewUser.isActive} />}</dd>
+              </div>
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Số điện thoại</dt>
+                <dd className="font-medium">{viewUser?.phone || "—"}</dd>
+              </div>
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Ngày sinh</dt>
+                <dd className="font-medium">
+                  {viewUser?.dateOfBirth ? formatDate(viewUser.dateOfBirth) : "—"}
+                </dd>
+              </div>
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Giới tính</dt>
+                <dd className="font-medium">
+                  {viewUser?.gender ? GENDER_LABEL[viewUser.gender] : "—"}
+                </dd>
+              </div>
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Ngày tạo</dt>
+                <dd className="font-medium">
+                  {viewUser ? formatDate(viewUser.createdAt) : "—"}
+                </dd>
+              </div>
+            </dl>
+          </div>
+          {viewUser && canManage(currentUser?.role, viewUser.role) && (
+            <div className="px-6 py-4 border-t flex items-center justify-end gap-3 bg-muted/30">
+              <Button
+                variant="outline"
+                onClick={() => { setViewUser(null); openEdit(viewUser); }}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Chỉnh sửa
+              </Button>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* ── Create Sheet ───────────────────────────────────────────────────────── */}
       <Sheet

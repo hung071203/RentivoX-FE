@@ -7,6 +7,7 @@ import { z } from "zod";
 import {
   Plus,
   Search,
+  Eye,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
@@ -402,6 +403,7 @@ export default function PropertiesPage() {
   const [editProperty, setEditProperty] = useState<Property | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [servicesProperty, setServicesProperty] = useState<Property | null>(null);
+  const [viewProperty, setViewProperty] = useState<Property | null>(null);
 
   // Address state (province/district/ward) managed outside react-hook-form
   const [createAddress, setCreateAddress] = useState<AddressValue>(EMPTY_ADDRESS);
@@ -568,7 +570,7 @@ export default function PropertiesPage() {
                 <TableRow
                   key={property.id}
                   className="cursor-pointer"
-                  onClick={() => router.push(`/rooms?propertyId=${property.id}`)}
+                  onClick={() => setViewProperty(property)}
                 >
                   <TableCell className="pl-6 font-medium truncate">
                     <div className="flex items-center gap-2">
@@ -597,6 +599,13 @@ export default function PropertiesPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                          onClick={() => setViewProperty(property)}
+                        >
+                          <Eye className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Xem chi tiết
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => router.push(`/rooms?propertyId=${property.id}`)}
                         >
@@ -815,6 +824,93 @@ export default function PropertiesPage() {
               </Button>
             </div>
           </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Property Detail Sheet ─────────────────────────────────────────────── */}
+      <Sheet
+        open={!!viewProperty}
+        onOpenChange={(o) => { if (!o) setViewProperty(null); }}
+      >
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 py-5 border-b">
+            <div className="flex items-start gap-2.5 pr-10">
+              <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <SheetTitle className="truncate">{viewProperty?.name}</SheetTitle>
+                <SheetDescription>Chi tiết nhà trọ</SheetDescription>
+              </div>
+            </div>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+            <dl className="divide-y divide-border text-sm">
+              <div className="flex items-start gap-3 py-3 first:pt-0">
+                <dt className="text-muted-foreground w-32 shrink-0 pt-0.5">Số nhà, đường</dt>
+                <dd className="font-medium flex-1">{viewProperty?.address || "—"}</dd>
+              </div>
+              {viewProperty?.ward && (
+                <div className="flex items-start gap-3 py-3">
+                  <dt className="text-muted-foreground w-32 shrink-0 pt-0.5">Phường/Xã</dt>
+                  <dd className="font-medium flex-1">{viewProperty.ward}</dd>
+                </div>
+              )}
+              {viewProperty?.district && (
+                <div className="flex items-start gap-3 py-3">
+                  <dt className="text-muted-foreground w-32 shrink-0 pt-0.5">Quận/Huyện</dt>
+                  <dd className="font-medium flex-1">{viewProperty.district}</dd>
+                </div>
+              )}
+              {viewProperty?.province && (
+                <div className="flex items-start gap-3 py-3">
+                  <dt className="text-muted-foreground w-32 shrink-0 pt-0.5">Tỉnh/Thành phố</dt>
+                  <dd className="font-medium flex-1">{viewProperty.province}</dd>
+                </div>
+              )}
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-32 shrink-0 pt-0.5">Ngày tạo</dt>
+                <dd className="font-medium">{viewProperty ? formatDate(viewProperty.createdAt) : "—"}</dd>
+              </div>
+            </dl>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Thao tác nhanh</p>
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => { setViewProperty(null); router.push(`/rooms?propertyId=${viewProperty?.id}`); }}
+                >
+                  <DoorOpen className="h-4 w-4 mr-2 text-muted-foreground" />
+                  Xem phòng
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => { const p = viewProperty; setViewProperty(null); setServicesProperty(p); }}
+                >
+                  <Wrench className="h-4 w-4 mr-2 text-muted-foreground" />
+                  Quản lý dịch vụ
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => { setViewProperty(null); router.push(`/contracts?propertyId=${viewProperty?.id}`); }}
+                >
+                  <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                  Xem hợp đồng
+                </Button>
+              </div>
+            </div>
+          </div>
+          <div className="px-6 py-4 border-t flex items-center justify-end gap-3 bg-muted/30">
+            <Button
+              variant="outline"
+              onClick={() => { const p = viewProperty; setViewProperty(null); if (p) openEdit(p); }}
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Chỉnh sửa
+            </Button>
+          </div>
         </SheetContent>
       </Sheet>
 

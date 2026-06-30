@@ -6,6 +6,7 @@ import { z } from "zod";
 import {
   Plus,
   Search,
+  Eye,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
@@ -71,6 +72,7 @@ import {
   useToggleTenantActive,
 } from "@/hooks/useTenants";
 import { GENDER_LABEL } from "@/constants/enums";
+import { formatDate } from "@/utils/format";
 import type {
   Tenant,
   Gender,
@@ -278,6 +280,7 @@ export default function TenantsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTenant, setEditTenant] = useState<Tenant | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [viewTenant, setViewTenant] = useState<Tenant | null>(null);
 
   const { data, isLoading } = useTenants(params);
   const createTenant = useCreateTenant();
@@ -547,7 +550,7 @@ export default function TenantsPage() {
                 </TableRow>
               )}
               {data?.items.map((tenant) => (
-                <TableRow key={tenant.id}>
+                <TableRow key={tenant.id} className="cursor-pointer" onClick={() => setViewTenant(tenant)}>
                   <TableCell className="pl-6">
                     <div className="flex items-center gap-2.5">
                       <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -573,7 +576,7 @@ export default function TenantsPage() {
                   <TableCell>
                     <AccountBadge hasAccount={!!tenant.userId} isActive={tenant.user?.isActive} />
                   </TableCell>
-                  <TableCell className="pr-4 text-right">
+                  <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -585,6 +588,11 @@ export default function TenantsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onClick={() => setViewTenant(tenant)}>
+                          <Eye className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Xem chi tiết
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => openEdit(tenant)}>
                           <Pencil className="h-4 w-4 mr-2 text-muted-foreground" />
                           Chỉnh sửa
@@ -684,6 +692,128 @@ export default function TenantsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Tenant Detail Sheet ───────────────────────────────────────────────── */}
+      <Sheet open={!!viewTenant} onOpenChange={(o) => { if (!o) setViewTenant(null); }}>
+        <SheetContent className="w-full sm:max-w-lg flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 py-5 border-b">
+            <div className="flex items-start justify-between gap-3 pr-10">
+              <div className="min-w-0">
+                <SheetTitle className="truncate">{viewTenant?.fullName}</SheetTitle>
+                <SheetDescription className="truncate mt-0.5">
+                  {viewTenant?.phone || viewTenant?.email || "Khách thuê"}
+                </SheetDescription>
+              </div>
+              {viewTenant && <AccountBadge hasAccount={!!viewTenant.userId} isActive={viewTenant.user?.isActive} />}
+            </div>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+            {/* Thông tin cơ bản */}
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Thông tin cơ bản</p>
+              <dl className="divide-y divide-border text-sm">
+                <div className="flex items-start gap-3 py-3 first:pt-0">
+                  <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Số điện thoại</dt>
+                  <dd className="font-medium">{viewTenant?.phone || "—"}</dd>
+                </div>
+                <div className="flex items-start gap-3 py-3">
+                  <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Email</dt>
+                  <dd className="font-medium truncate flex-1">{viewTenant?.email || "—"}</dd>
+                </div>
+                <div className="flex items-start gap-3 py-3">
+                  <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Ngày sinh</dt>
+                  <dd className="font-medium">
+                    {viewTenant?.dateOfBirth ? formatDate(viewTenant.dateOfBirth) : "—"}
+                  </dd>
+                </div>
+                <div className="flex items-start gap-3 py-3">
+                  <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Giới tính</dt>
+                  <dd className="font-medium">
+                    {viewTenant?.gender ? GENDER_LABEL[viewTenant.gender] : "—"}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            {/* Giấy tờ tùy thân */}
+            <div className="border-t pt-5 space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Giấy tờ tùy thân</p>
+              <dl className="divide-y divide-border text-sm">
+                <div className="flex items-start gap-3 py-3 first:pt-0">
+                  <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Số CCCD/CMND</dt>
+                  <dd className="font-mono font-medium">{viewTenant?.idCardNumber || "—"}</dd>
+                </div>
+                <div className="flex items-start gap-3 py-3">
+                  <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Ngày cấp</dt>
+                  <dd className="font-medium">
+                    {viewTenant?.idCardIssuedDate ? formatDate(viewTenant.idCardIssuedDate) : "—"}
+                  </dd>
+                </div>
+                <div className="flex items-start gap-3 py-3">
+                  <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Nơi cấp</dt>
+                  <dd className="font-medium flex-1">{viewTenant?.idCardIssuedPlace || "—"}</dd>
+                </div>
+                <div className="flex items-start gap-3 py-3">
+                  <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Thường trú</dt>
+                  <dd className="font-medium flex-1">{viewTenant?.permanentAddress || "—"}</dd>
+                </div>
+              </dl>
+            </div>
+
+            {/* Ảnh CCCD */}
+            {(viewTenant?.idCardFrontUrl || viewTenant?.idCardBackUrl) && (
+              <div className="border-t pt-5 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ảnh CCCD/CMND</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {viewTenant.idCardFrontUrl && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Mặt trước</p>
+                      <a
+                        href={viewTenant.idCardFrontUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block rounded-lg overflow-hidden border aspect-[16/10] bg-muted/30"
+                      >
+                        <img
+                          src={viewTenant.idCardFrontUrl}
+                          alt="Mặt trước CCCD"
+                          className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                        />
+                      </a>
+                    </div>
+                  )}
+                  {viewTenant.idCardBackUrl && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Mặt sau</p>
+                      <a
+                        href={viewTenant.idCardBackUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block rounded-lg overflow-hidden border aspect-[16/10] bg-muted/30"
+                      >
+                        <img
+                          src={viewTenant.idCardBackUrl}
+                          alt="Mặt sau CCCD"
+                          className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                        />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="px-6 py-4 border-t flex items-center justify-end gap-3 bg-muted/30">
+            <Button
+              variant="outline"
+              onClick={() => { const t = viewTenant; setViewTenant(null); if (t) openEdit(t); }}
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Chỉnh sửa
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* ── Create Sheet ──────────────────────────────────────────────────────── */}
       <Sheet open={createOpen} onOpenChange={(o) => { if (!o) closeCreate(); }}>

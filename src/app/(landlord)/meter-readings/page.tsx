@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Plus,
+  Eye,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
@@ -68,7 +69,7 @@ import { useProperties } from "@/hooks/useProperties";
 import { meterReadingsApi } from "@/apis/meter-readings.api";
 import { roomsApi } from "@/apis/rooms.api";
 import { servicesApi } from "@/apis/services.api";
-import { formatCurrency, formatPeriod } from "@/utils/format";
+import { formatCurrency, formatDate, formatPeriod } from "@/utils/format";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/error";
 import type { MeterReading, GetMeterReadingsParams } from "@/types/meter-reading.types";
@@ -467,6 +468,7 @@ export default function MeterReadingsPage() {
   const [editReading, setEditReading] = useState<MeterReading | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const [viewReading, setViewReading] = useState<MeterReading | null>(null);
   const [batchOpen, setBatchOpen] = useState(false);
   const [batchPeriod, setBatchPeriod] = useState("");
   const [batchPeriodErr, setBatchPeriodErr] = useState("");
@@ -824,7 +826,7 @@ export default function MeterReadingsPage() {
                 const unit = mr.service?.unit ?? "đơn vị";
                 const isShared = mr.room?.roomType === "shared";
                 return (
-                  <TableRow key={mr.id}>
+                  <TableRow key={mr.id} className="cursor-pointer" onClick={() => setViewReading(mr)}>
                     <TableCell className="pl-6">
                       <div className="flex items-center gap-2">
                         <Gauge className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -860,7 +862,7 @@ export default function MeterReadingsPage() {
                     <TableCell className="text-sm tabular-nums font-medium">
                       {mr.consumption.toLocaleString("vi-VN")} {unit}
                     </TableCell>
-                    <TableCell className="pr-4 text-right">
+                    <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -868,6 +870,11 @@ export default function MeterReadingsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem onClick={() => setViewReading(mr)}>
+                            <Eye className="h-4 w-4 mr-2 text-muted-foreground" />
+                            Xem chi tiết
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => openEdit(mr)}>
                             <Pencil className="h-4 w-4 mr-2 text-muted-foreground" />
                             Chỉnh sửa
@@ -934,6 +941,113 @@ export default function MeterReadingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Meter Reading Detail Sheet ───────────────────────────────────────── */}
+      <Sheet open={!!viewReading} onOpenChange={(o) => { if (!o) setViewReading(null); }}>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 py-5 border-b">
+            <div className="flex items-start gap-2.5 pr-10">
+              <Gauge className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <SheetTitle className="truncate">
+                  {viewReading?.service?.name} — Phòng {viewReading?.room?.roomNumber}
+                </SheetTitle>
+                <SheetDescription>
+                  {viewReading ? formatPeriod(viewReading.period) : ""}
+                  {viewReading?.room?.roomType === "shared" && " · Phòng ghép"}
+                </SheetDescription>
+              </div>
+            </div>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <dl className="divide-y divide-border text-sm">
+              <div className="flex items-start gap-3 py-3 first:pt-0">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Nhà trọ</dt>
+                <dd className="font-medium flex-1">{viewReading?.room?.property?.name || "—"}</dd>
+              </div>
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Phòng</dt>
+                <dd className="font-medium">Phòng {viewReading?.room?.roomNumber}</dd>
+              </div>
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Dịch vụ</dt>
+                <dd className="font-medium">
+                  {viewReading?.service?.name}
+                  {viewReading?.service?.unit ? ` (${viewReading.service.unit})` : ""}
+                </dd>
+              </div>
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Kỳ</dt>
+                <dd className="font-medium">{viewReading ? formatPeriod(viewReading.period) : "—"}</dd>
+              </div>
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Chỉ số đầu</dt>
+                <dd className="font-medium tabular-nums">
+                  {viewReading ? Number(viewReading.valueStart).toLocaleString("vi-VN") : "—"}
+                </dd>
+              </div>
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Chỉ số cuối</dt>
+                <dd className="font-medium tabular-nums">
+                  {viewReading ? Number(viewReading.valueEnd).toLocaleString("vi-VN") : "—"}
+                </dd>
+              </div>
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Tiêu thụ</dt>
+                <dd className="font-medium tabular-nums">
+                  {viewReading
+                    ? `${viewReading.consumption.toLocaleString("vi-VN")} ${viewReading.service?.unit ?? "đơn vị"}`
+                    : "—"}
+                </dd>
+              </div>
+              {viewReading && viewReading.contractCount > 1 && (
+                <div className="flex items-start gap-3 py-3">
+                  <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Số HĐ chia</dt>
+                  <dd className="font-medium">{viewReading.contractCount} hợp đồng</dd>
+                </div>
+              )}
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Đơn giá</dt>
+                <dd className="font-medium">
+                  {viewReading ? formatCurrency(Number(viewReading.service?.unitPrice ?? 0)) : "—"}
+                  {viewReading?.service?.unit ? `/${viewReading.service.unit}` : ""}
+                </dd>
+              </div>
+              {viewReading && viewReading.contractCount > 1 && (
+                <div className="flex items-start gap-3 py-3">
+                  <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Tiền/HĐ</dt>
+                  <dd className="font-medium">{formatCurrency(Number(viewReading.amountPerContract))}</dd>
+                </div>
+              )}
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Tổng tiền</dt>
+                <dd className="font-semibold text-primary">
+                  {viewReading ? formatCurrency(Number(viewReading.totalAmount)) : "—"}
+                </dd>
+              </div>
+              <div className="flex items-start gap-3 py-3">
+                <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Ghi bởi</dt>
+                <dd className="font-medium">{viewReading?.recordedBy?.fullName || "—"}</dd>
+              </div>
+              {viewReading?.recordedAt && (
+                <div className="flex items-start gap-3 py-3">
+                  <dt className="text-muted-foreground w-36 shrink-0 pt-0.5">Ghi lúc</dt>
+                  <dd className="font-medium">{formatDate(viewReading.recordedAt)}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+          <div className="px-6 py-4 border-t flex items-center justify-end gap-3 bg-muted/30">
+            <Button
+              variant="outline"
+              onClick={() => { const r = viewReading; setViewReading(null); if (r) openEdit(r); }}
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Chỉnh sửa
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* ── Create Sheet ─────────────────────────────────────────────────────── */}
       <Sheet open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>

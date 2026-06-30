@@ -142,10 +142,10 @@ function InvoiceDetailSheet({
     >
       <SheetContent className="w-full sm:max-w-lg flex flex-col gap-0 p-0">
         <SheetHeader className="px-6 py-5 border-b">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <SheetTitle>{invoice.invoiceNumber ?? "Chi tiết hóa đơn"}</SheetTitle>
-              <SheetDescription>
+          <div className="flex items-start justify-between gap-3 pr-10">
+            <div className="min-w-0">
+              <SheetTitle className="truncate">{invoice.invoiceNumber ?? "Chi tiết hóa đơn"}</SheetTitle>
+              <SheetDescription className="truncate">
                 {formatPeriod(invoice.period)} · Phòng {room?.roomNumber} ·{" "}
                 {property?.name}
               </SheetDescription>
