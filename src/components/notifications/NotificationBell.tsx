@@ -14,6 +14,7 @@ import {
   Wallet,
   Megaphone,
   Loader2,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -30,6 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth.store'
 import { useNotificationStore } from '@/stores/notification.store'
 import {
@@ -90,6 +92,44 @@ function NotiIconBubble({ type, size = 'md' }: { type: string; size?: 'md' | 'lg
     >
       <Icon className={cn(size === 'lg' ? 'h-5 w-5' : 'h-4 w-4', color)} />
     </span>
+  )
+}
+
+// ─── Toast khi nhận notification mới qua socket ──────────────────────────────
+
+function NotiToastContent({
+  noti,
+  toastId,
+  onClick,
+}: {
+  noti: Notification
+  toastId: string | number
+  onClick?: () => void
+}) {
+  const { bg, color, icon: Icon } = NOTI_ICON_MAP[noti.type] ?? DEFAULT_ICON
+  return (
+    <div
+      className={cn(
+        'flex items-start gap-3 bg-background border border-border rounded-xl shadow-lg px-4 py-3.5 w-80',
+        onClick && 'cursor-pointer hover:bg-muted/30 transition-colors',
+      )}
+      onClick={onClick}
+    >
+      <span className={cn('rounded-full flex items-center justify-center shrink-0 h-9 w-9 mt-0.5', bg)}>
+        <Icon className={cn('h-4 w-4', color)} />
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold leading-snug line-clamp-1">{noti.title}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">{noti.message}</p>
+      </div>
+      <button
+        className="shrink-0 mt-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+        onClick={(e) => { e.stopPropagation(); toast.dismiss(toastId) }}
+        aria-label="Đóng"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
   )
 }
 
@@ -237,7 +277,23 @@ export default function NotificationBell() {
   const [tab, setTab] = useState<Tab>('all')
   const [detailNoti, setDetailNoti] = useState<Notification | null>(null)
 
-  useSocketInit()
+  useSocketInit((noti) => {
+    const link = resolveDeepLink(user?.role ?? '', noti.data)
+    toast.custom(
+      (t) => (
+        <NotiToastContent
+          noti={noti}
+          toastId={t}
+          onClick={
+            link
+              ? () => { toast.dismiss(t); router.push(link) }
+              : () => { toast.dismiss(t); setDetailNoti(noti) }
+          }
+        />
+      ),
+      { duration: 6000 },
+    )
+  })
   useUnreadCount()
 
   const markAsRead = useMarkAsRead()

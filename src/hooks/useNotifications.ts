@@ -1,5 +1,5 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   useInfiniteQuery,
   useMutation,
@@ -13,7 +13,7 @@ import { useNotificationStore } from '@/stores/notification.store'
 import { getToken } from '@/utils/auth'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { getErrorMessage } from '@/utils/error'
-import type { GetNotificationsParams, BroadcastNotificationPayload } from '@/types/notification.types'
+import type { GetNotificationsParams, BroadcastNotificationPayload, Notification } from '@/types/notification.types'
 
 const NOTI_KEY = 'notifications'
 const UNREAD_KEY = 'notifications-unread-count'
@@ -85,10 +85,12 @@ export function useBroadcastNotification() {
 }
 
 // Khởi tạo socket — gọi trong component chỉ render cho landlord/tenant
-export function useSocketInit() {
+export function useSocketInit(onNew?: (noti: Notification) => void) {
   const { user } = useAuthStore()
   const { incrementUnread } = useNotificationStore()
   const qc = useQueryClient()
+  const onNewRef = useRef(onNew)
+  onNewRef.current = onNew
 
   useEffect(() => {
     if (!user) return
@@ -99,9 +101,10 @@ export function useSocketInit() {
     const socket = connectSocket(token)
     if (!socket) return
 
-    const handleNotification = () => {
+    const handleNotification = (noti: Notification) => {
       incrementUnread()
       qc.invalidateQueries({ queryKey: [NOTI_KEY] })
+      onNewRef.current?.(noti)
     }
 
     socket.on('notification', handleNotification)
