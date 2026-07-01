@@ -1,5 +1,6 @@
 import LandlordSidebar from './LandlordSidebar'
 import Header from './Header'
+import ChatWidget from '@/components/chat/ChatWidget'
 
 export default function LandlordLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export default function LandlordLayout({ children }: { children: React.ReactNode
         <Header />
         <main className="flex-1 overflow-auto bg-muted/40 p-6">{children}</main>
       </div>
+      <ChatWidget />
     </div>
   )
 }
