@@ -218,6 +218,8 @@ function IdCardUpload({
             <img
               src={url}
               alt={label}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover cursor-zoom-in"
               onClick={() => setPreviewOpen(true)}
             />
@@ -333,15 +335,11 @@ export default function TenantsPage() {
   const [createBackPreview, setCreateBackPreview] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [editTenant, setEditTenant] = useState<Tenant | null>(null);
+  const [editFrontFile, setEditFrontFile] = useState<File | null>(null);
+  const [editBackFile, setEditBackFile] = useState<File | null>(null);
+  const [editScanning, setEditScanning] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewTenant, setViewTenant] = useState<Tenant | null>(null);
-  const [tenantImagesReady, setTenantImagesReady] = useState(false);
-
-  useEffect(() => {
-    if (!viewTenant) { setTenantImagesReady(false); return; }
-    const t = setTimeout(() => setTenantImagesReady(true), 300);
-    return () => clearTimeout(t);
-  }, [viewTenant]);
 
   const { data, isLoading } = useTenants(params);
   const createTenant = useCreateTenant();
@@ -371,6 +369,7 @@ export default function TenantsPage() {
     control: controlE,
     watch: watchE,
     reset: resetE,
+    setValue: setValueE,
     formState: { errors: errE },
   } = useForm<TenantForm>({
     resolver: zodResolver(tenantSchema),
@@ -445,6 +444,7 @@ export default function TenantsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createFrontFile, createBackFile]);
 
+
   function openCreate() {
     resetC(emptyForm);
     setCreateOpen(true);
@@ -480,6 +480,8 @@ export default function TenantsPage() {
   function closeEdit() {
     setEditTenant(null);
     resetE(emptyForm);
+    setEditFrontFile(null);
+    setEditBackFile(null);
   }
 
   function formToPayload(form: TenantForm): Omit<CreateTenantPayload, 'createAccount'> & { createAccount?: boolean } {
@@ -520,12 +522,46 @@ export default function TenantsPage() {
 
   function handleUpload(side: "front" | "back", file: File) {
     if (!editTenant) return;
+    if (side === "front") setEditFrontFile(file);
+    else setEditBackFile(file);
     uploadIdCard.mutate(
       { id: editTenant.id, side, file },
-      {
-        onSuccess: (updated) => setEditTenant(updated),
-      }
+      { onSuccess: (updated) => setEditTenant(updated) }
     );
+  }
+
+  async function handleScanEdit() {
+    if (!editTenant) return;
+    let f: File | null = editFrontFile;
+    let b: File | null = editBackFile;
+    if (!f && editTenant.idCardFrontUrl) {
+      f = await fetch(editTenant.idCardFrontUrl)
+        .then((r) => r.blob())
+        .then((blob) => new File([blob], "front.jpg", { type: blob.type || "image/jpeg" }))
+        .catch(() => null);
+    }
+    if (!b && editTenant.idCardBackUrl) {
+      b = await fetch(editTenant.idCardBackUrl)
+        .then((r) => r.blob())
+        .then((blob) => new File([blob], "back.jpg", { type: blob.type || "image/jpeg" }))
+        .catch(() => null);
+    }
+    if (!f || !b) { toast.error("Cần có cả 2 mặt CCCD để nhận dạng"); return; }
+    setEditScanning(true);
+    tenantsApi
+      .scanIdCard(f, b)
+      .then((result) => {
+        if (result.fullName) setValueE("fullName", result.fullName);
+        if (result.idCardNumber) setValueE("idCardNumber", result.idCardNumber);
+        if (result.dateOfBirth) setValueE("dateOfBirth", result.dateOfBirth);
+        if (result.gender) setValueE("gender", result.gender);
+        if (result.permanentAddress) setValueE("permanentAddress", result.permanentAddress);
+        if (result.idCardIssuedDate) setValueE("idCardIssuedDate", result.idCardIssuedDate);
+        if (result.idCardIssuedPlace) setValueE("idCardIssuedPlace", result.idCardIssuedPlace);
+        toast.success("Đã nhận dạng thông tin từ CCCD");
+      })
+      .catch((err) => toast.error("Nhận dạng CCCD thất bại: " + getErrorMessage(err)))
+      .finally(() => setEditScanning(false));
   }
 
   function handleDelete() {
@@ -871,7 +907,7 @@ export default function TenantsPage() {
             </div>
 
             {/* Ảnh CCCD */}
-            {tenantImagesReady && (viewTenant?.idCardFrontUrl || viewTenant?.idCardBackUrl) && (
+            {(viewTenant?.idCardFrontUrl || viewTenant?.idCardBackUrl) && (
               <div className="border-t pt-5 space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ảnh CCCD/CMND</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -939,87 +975,77 @@ export default function TenantsPage() {
 
           <form onSubmit={submitC(onCreateSubmit)} className="flex flex-col flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
-              {/* Thông tin cơ bản */}
-              <FormField label="Họ và tên" error={errC.fullName?.message} required>
-                <Input {...regC("fullName")} placeholder="Nguyễn Văn A" />
-              </FormField>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField label="Số điện thoại" error={errC.phone?.message}>
-                  <Input {...regC("phone")} placeholder="0901234567" />
-                </FormField>
-                <FormField label="Email" error={errC.email?.message}>
-                  <Input {...regC("email")} type="email" placeholder="email@gmail.com" />
-                </FormField>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField label="Ngày sinh" error={errC.dateOfBirth?.message}>
-                  <Input {...regC("dateOfBirth")} type="date" max={maxDob16} />
-                </FormField>
-                <FormField label="Giới tính" error={errC.gender?.message}>
-                  <Controller
-                    name="gender"
-                    control={controlC}
-                    render={({ field }) => (
-                      <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn giới tính" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male">Nam</SelectItem>
-                          <SelectItem value="female">Nữ</SelectItem>
-                          <SelectItem value="other">Khác</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </FormField>
-              </div>
-
-              {/* CCCD */}
-              <div className="border-t pt-5 space-y-4">
+              {/* Card CCCD — ảnh + tất cả fields được auto-fill từ scan */}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Giấy tờ tùy thân</p>
-                  {scanning && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <p className="text-sm font-semibold text-primary">Giấy tờ tùy thân</p>
+                  {scanning ? (
+                    <span className="text-xs text-primary flex items-center gap-1.5">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Đang nhận dạng...
                     </span>
+                  ) : (
+                    !createFrontFile && !createBackFile && (
+                      <span className="text-xs text-muted-foreground">Tải 2 mặt để tự điền</span>
+                    )
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-3">
-                    <IdCardCapture
-                      label="Ảnh mặt trước"
-                      preview={createFrontPreview}
-                      onFile={(f) => handleCreateFile("front", f)}
+                <div className="grid grid-cols-2 gap-3">
+                  <IdCardCapture
+                    label="Ảnh mặt trước"
+                    preview={createFrontPreview}
+                    onFile={(f) => handleCreateFile("front", f)}
+                  />
+                  <IdCardCapture
+                    label="Ảnh mặt sau"
+                    preview={createBackPreview}
+                    onFile={(f) => handleCreateFile("back", f)}
+                  />
+                </div>
+
+                <FormField label="Họ và tên" error={errC.fullName?.message} required>
+                  <Input {...regC("fullName")} placeholder="Nguyễn Văn A" />
+                </FormField>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField label="Ngày sinh" error={errC.dateOfBirth?.message}>
+                    <Input {...regC("dateOfBirth")} type="date" max={maxDob16} />
+                  </FormField>
+                  <FormField label="Giới tính" error={errC.gender?.message}>
+                    <Controller
+                      name="gender"
+                      control={controlC}
+                      render={({ field }) => (
+                        <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Chọn giới tính" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Nam</SelectItem>
+                            <SelectItem value="female">Nữ</SelectItem>
+                            <SelectItem value="other">Khác</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     />
-                    <IdCardCapture
-                      label="Ảnh mặt sau"
-                      preview={createBackPreview}
-                      onFile={(f) => handleCreateFile("back", f)}
-                    />
-                  </div>
-                  {!createFrontFile && !createBackFile && (
-                    <p className="text-xs text-muted-foreground">
-                      Tải cả 2 mặt CCCD để tự động điền thông tin bên dưới
-                    </p>
-                  )}
+                  </FormField>
                 </div>
 
                 <FormField label="Số CCCD/CMND" error={errC.idCardNumber?.message} required>
                   <Input {...regC("idCardNumber")} placeholder="012345678901" />
                 </FormField>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField label="Ngày cấp" error={errC.idCardIssuedDate?.message}>
-                    <Input {...regC("idCardIssuedDate")} type="date" max={today} />
-                  </FormField>
-                  <FormField label="Nơi cấp" error={errC.idCardIssuedPlace?.message}>
-                    <Input {...regC("idCardIssuedPlace")} placeholder="Cục CSQLHC..." />
-                  </FormField>
-                </div>
+                <FormField label="Ngày cấp" error={errC.idCardIssuedDate?.message}>
+                  <Input {...regC("idCardIssuedDate")} type="date" max={today} />
+                </FormField>
+                <FormField label="Nơi cấp" error={errC.idCardIssuedPlace?.message}>
+                  <textarea
+                    {...regC("idCardIssuedPlace")}
+                    rows={2}
+                    placeholder="Cục Cảnh sát quản lý hành chính về TTXH - Bộ Công an"
+                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                  />
+                </FormField>
                 <FormField label="Địa chỉ thường trú" error={errC.permanentAddress?.message}>
                   <textarea
                     {...regC("permanentAddress")}
@@ -1027,6 +1053,16 @@ export default function TenantsPage() {
                     placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố"
                     className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
                   />
+                </FormField>
+              </div>
+
+              {/* Liên hệ */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Số điện thoại" error={errC.phone?.message}>
+                  <Input {...regC("phone")} placeholder="0901234567" />
+                </FormField>
+                <FormField label="Email" error={errC.email?.message}>
+                  <Input {...regC("email")} type="email" placeholder="email@gmail.com" />
                 </FormField>
               </div>
 
@@ -1072,58 +1108,86 @@ export default function TenantsPage() {
 
           <form onSubmit={submitE(onEditSubmit)} className="flex flex-col flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
-              {/* Thông tin cơ bản */}
-              <FormField label="Họ và tên" error={errE.fullName?.message} required>
-                <Input {...regE("fullName")} />
-              </FormField>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField label="Số điện thoại" error={errE.phone?.message}>
-                  <Input {...regE("phone")} />
-                </FormField>
-                <FormField label="Email" error={errE.email?.message}>
-                  <Input {...regE("email")} type="email" />
-                </FormField>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField label="Ngày sinh" error={errE.dateOfBirth?.message}>
-                  <Input {...regE("dateOfBirth")} type="date" max={maxDob16} />
-                </FormField>
-                <FormField label="Giới tính" error={errE.gender?.message}>
-                  <Controller
-                    name="gender"
-                    control={controlE}
-                    render={({ field }) => (
-                      <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn giới tính" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male">Nam</SelectItem>
-                          <SelectItem value="female">Nữ</SelectItem>
-                          <SelectItem value="other">Khác</SelectItem>
-                        </SelectContent>
-                      </Select>
+              {/* Card CCCD — giống Create */}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-primary">Giấy tờ tùy thân</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1.5"
+                    disabled={
+                      editScanning ||
+                      (!(editFrontFile || editTenant?.idCardFrontUrl) ||
+                       !(editBackFile || editTenant?.idCardBackUrl))
+                    }
+                    onClick={handleScanEdit}
+                  >
+                    {editScanning ? (
+                      <><Loader2 className="h-3 w-3 animate-spin" />Đang nhận dạng...</>
+                    ) : (
+                      <><Camera className="h-3 w-3" />Nhận dạng lại</>
                     )}
-                  />
-                </FormField>
-              </div>
+                  </Button>
+                </div>
 
-              {/* CCCD */}
-              <div className="border-t pt-5 space-y-4">
-                <p className="text-sm font-medium">Giấy tờ tùy thân</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <IdCardUpload
+                    label="Mặt trước"
+                    url={editTenant?.idCardFrontUrl ?? null}
+                    onUpload={(file) => handleUpload("front", file)}
+                    isPending={uploadIdCard.isPending && uploadIdCard.variables?.side === "front"}
+                  />
+                  <IdCardUpload
+                    label="Mặt sau"
+                    url={editTenant?.idCardBackUrl ?? null}
+                    onUpload={(file) => handleUpload("back", file)}
+                    isPending={uploadIdCard.isPending && uploadIdCard.variables?.side === "back"}
+                  />
+                </div>
+
+                <FormField label="Họ và tên" error={errE.fullName?.message} required>
+                  <Input {...regE("fullName")} />
+                </FormField>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField label="Ngày sinh" error={errE.dateOfBirth?.message}>
+                    <Input {...regE("dateOfBirth")} type="date" max={maxDob16} />
+                  </FormField>
+                  <FormField label="Giới tính" error={errE.gender?.message}>
+                    <Controller
+                      name="gender"
+                      control={controlE}
+                      render={({ field }) => (
+                        <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Chọn giới tính" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Nam</SelectItem>
+                            <SelectItem value="female">Nữ</SelectItem>
+                            <SelectItem value="other">Khác</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </FormField>
+                </div>
+
                 <FormField label="Số CCCD/CMND" error={errE.idCardNumber?.message} required>
                   <Input {...regE("idCardNumber")} />
                 </FormField>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField label="Ngày cấp" error={errE.idCardIssuedDate?.message}>
-                    <Input {...regE("idCardIssuedDate")} type="date" max={today} />
-                  </FormField>
-                  <FormField label="Nơi cấp" error={errE.idCardIssuedPlace?.message}>
-                    <Input {...regE("idCardIssuedPlace")} />
-                  </FormField>
-                </div>
+                <FormField label="Ngày cấp" error={errE.idCardIssuedDate?.message}>
+                  <Input {...regE("idCardIssuedDate")} type="date" max={today} />
+                </FormField>
+                <FormField label="Nơi cấp" error={errE.idCardIssuedPlace?.message}>
+                  <textarea
+                    {...regE("idCardIssuedPlace")}
+                    rows={2}
+                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                  />
+                </FormField>
                 <FormField label="Địa chỉ thường trú" error={errE.permanentAddress?.message}>
                   <textarea
                     {...regE("permanentAddress")}
@@ -1133,29 +1197,14 @@ export default function TenantsPage() {
                 </FormField>
               </div>
 
-              {/* Ảnh CCCD */}
-              <div className="border-t pt-5 space-y-3">
-                <p className="text-sm font-medium">Ảnh CCCD/CMND</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <IdCardUpload
-                    label="Mặt trước"
-                    url={editTenant?.idCardFrontUrl ?? null}
-                    onUpload={(file) => handleUpload("front", file)}
-                    isPending={
-                      uploadIdCard.isPending &&
-                      uploadIdCard.variables?.side === "front"
-                    }
-                  />
-                  <IdCardUpload
-                    label="Mặt sau"
-                    url={editTenant?.idCardBackUrl ?? null}
-                    onUpload={(file) => handleUpload("back", file)}
-                    isPending={
-                      uploadIdCard.isPending &&
-                      uploadIdCard.variables?.side === "back"
-                    }
-                  />
-                </div>
+              {/* Liên hệ */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Số điện thoại" error={errE.phone?.message}>
+                  <Input {...regE("phone")} />
+                </FormField>
+                <FormField label="Email" error={errE.email?.message}>
+                  <Input {...regE("email")} type="email" />
+                </FormField>
               </div>
 
               {/* Tài khoản — chỉ hiện nếu chưa có */}
