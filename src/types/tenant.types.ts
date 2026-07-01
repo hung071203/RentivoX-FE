@@ -40,6 +40,16 @@ export interface CreateTenantPayload {
 
 export type UpdateTenantPayload = Partial<CreateTenantPayload>
 
+export interface ScanIdCardResult {
+  idCardNumber?: string
+  fullName?: string
+  dateOfBirth?: string
+  gender?: Gender
+  permanentAddress?: string
+  idCardIssuedDate?: string
+  idCardIssuedPlace?: string
+}
+
 export interface GetTenantsParams {
   page?: number
   limit?: number

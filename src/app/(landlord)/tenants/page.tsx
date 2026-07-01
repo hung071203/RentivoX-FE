@@ -268,6 +268,55 @@ function IdCardUpload({
   );
 }
 
+// ─── IdCardCapture (dùng trong Create — chỉ giữ file local, không gọi API) ───
+
+function IdCardCapture({
+  label,
+  preview,
+  onFile,
+}: {
+  label: string;
+  preview: string | null;
+  onFile: (f: File) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <div
+        className="relative border-2 border-dashed rounded-lg overflow-hidden bg-muted/30 cursor-pointer hover:border-primary/40 transition-colors"
+        style={{ aspectRatio: "16/10" }}
+        onClick={() => ref.current?.click()}
+      >
+        {preview ? (
+          <>
+            <img src={preview} alt={label} className="w-full h-full object-cover" />
+            <div className="absolute bottom-1.5 right-1.5 bg-background/80 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground border border-border/50">
+              Đổi ảnh
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-1.5 text-muted-foreground">
+            <Camera className="h-6 w-6" />
+            <span className="text-xs">Nhấn để chọn</span>
+          </div>
+        )}
+      </div>
+      <input
+        ref={ref}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onFile(file);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TenantsPage() {
@@ -278,6 +327,11 @@ export default function TenantsPage() {
   const [search, setSearch] = useState("");
   const [excelLoading, setExcelLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createFrontFile, setCreateFrontFile] = useState<File | null>(null);
+  const [createBackFile, setCreateBackFile] = useState<File | null>(null);
+  const [createFrontPreview, setCreateFrontPreview] = useState<string | null>(null);
+  const [createBackPreview, setCreateBackPreview] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
   const [editTenant, setEditTenant] = useState<Tenant | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewTenant, setViewTenant] = useState<Tenant | null>(null);
@@ -303,6 +357,7 @@ export default function TenantsPage() {
     control: controlC,
     watch: watchC,
     reset: resetC,
+    setValue: setValueC,
     formState: { errors: errC },
   } = useForm<TenantForm>({
     resolver: zodResolver(tenantSchema),
@@ -357,6 +412,39 @@ export default function TenantsPage() {
 
   const emptyForm: TenantForm = { fullName: "", email: "", phone: "", dateOfBirth: "", gender: "", idCardNumber: "", idCardIssuedDate: "", idCardIssuedPlace: "", permanentAddress: "", createAccount: false };
 
+  function handleCreateFile(side: "front" | "back", file: File) {
+    const url = URL.createObjectURL(file);
+    if (side === "front") {
+      if (createFrontPreview) URL.revokeObjectURL(createFrontPreview);
+      setCreateFrontFile(file);
+      setCreateFrontPreview(url);
+    } else {
+      if (createBackPreview) URL.revokeObjectURL(createBackPreview);
+      setCreateBackFile(file);
+      setCreateBackPreview(url);
+    }
+  }
+
+  useEffect(() => {
+    if (!createFrontFile || !createBackFile) return;
+    setScanning(true);
+    tenantsApi
+      .scanIdCard(createFrontFile, createBackFile)
+      .then((result) => {
+        if (result.fullName) setValueC("fullName", result.fullName);
+        if (result.idCardNumber) setValueC("idCardNumber", result.idCardNumber);
+        if (result.dateOfBirth) setValueC("dateOfBirth", result.dateOfBirth);
+        if (result.gender) setValueC("gender", result.gender);
+        if (result.permanentAddress) setValueC("permanentAddress", result.permanentAddress);
+        if (result.idCardIssuedDate) setValueC("idCardIssuedDate", result.idCardIssuedDate);
+        if (result.idCardIssuedPlace) setValueC("idCardIssuedPlace", result.idCardIssuedPlace);
+        toast.success("Đã nhận dạng thông tin từ CCCD");
+      })
+      .catch((err) => toast.error("Nhận dạng CCCD thất bại: " + getErrorMessage(err)))
+      .finally(() => setScanning(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createFrontFile, createBackFile]);
+
   function openCreate() {
     resetC(emptyForm);
     setCreateOpen(true);
@@ -365,6 +453,12 @@ export default function TenantsPage() {
   function closeCreate() {
     setCreateOpen(false);
     resetC(emptyForm);
+    if (createFrontPreview) URL.revokeObjectURL(createFrontPreview);
+    if (createBackPreview) URL.revokeObjectURL(createBackPreview);
+    setCreateFrontFile(null);
+    setCreateBackFile(null);
+    setCreateFrontPreview(null);
+    setCreateBackPreview(null);
   }
 
   function openEdit(tenant: Tenant) {
@@ -404,7 +498,16 @@ export default function TenantsPage() {
   }
 
   function onCreateSubmit(form: TenantForm) {
-    createTenant.mutate(formToPayload(form), { onSuccess: closeCreate });
+    createTenant.mutate(
+      {
+        data: formToPayload(form),
+        files: {
+          idCardFront: createFrontFile ?? undefined,
+          idCardBack: createBackFile ?? undefined,
+        },
+      },
+      { onSuccess: closeCreate },
+    );
   }
 
   function onEditSubmit(form: TenantForm) {
@@ -876,7 +979,36 @@ export default function TenantsPage() {
 
               {/* CCCD */}
               <div className="border-t pt-5 space-y-4">
-                <p className="text-sm font-medium">Giấy tờ tùy thân</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Giấy tờ tùy thân</p>
+                  {scanning && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Đang nhận dạng...
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <IdCardCapture
+                      label="Ảnh mặt trước"
+                      preview={createFrontPreview}
+                      onFile={(f) => handleCreateFile("front", f)}
+                    />
+                    <IdCardCapture
+                      label="Ảnh mặt sau"
+                      preview={createBackPreview}
+                      onFile={(f) => handleCreateFile("back", f)}
+                    />
+                  </div>
+                  {!createFrontFile && !createBackFile && (
+                    <p className="text-xs text-muted-foreground">
+                      Tải cả 2 mặt CCCD để tự động điền thông tin bên dưới
+                    </p>
+                  )}
+                </div>
+
                 <FormField label="Số CCCD/CMND" error={errC.idCardNumber?.message} required>
                   <Input {...regC("idCardNumber")} placeholder="012345678901" />
                 </FormField>

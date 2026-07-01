@@ -14,7 +14,8 @@ export function useTenants(params?: GetTenantsParams) {
 export function useCreateTenant() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: CreateTenantPayload) => tenantsApi.create(data),
+    mutationFn: ({ data, files }: { data: CreateTenantPayload; files?: { idCardFront?: File; idCardBack?: File } }) =>
+      tenantsApi.create(data, files),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenants'] })
       toast.success('Tạo khách thuê thành công')

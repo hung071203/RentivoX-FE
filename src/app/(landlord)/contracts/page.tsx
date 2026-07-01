@@ -577,16 +577,18 @@ export default function ContractsPage() {
     const opt = (v: string) => v.trim() || undefined
     createTenant.mutate(
       {
-        fullName: form.fullName.trim(),
-        phone: opt(form.phone),
-        email: opt(form.email),
-        dateOfBirth: opt(form.dateOfBirth),
-        gender: (form.gender || undefined) as import("@/types/tenant.types").Gender | undefined,
-        idCardNumber: opt(form.idCardNumber),
-        idCardIssuedDate: opt(form.idCardIssuedDate),
-        idCardIssuedPlace: opt(form.idCardIssuedPlace),
-        permanentAddress: opt(form.permanentAddress),
-        createAccount: form.createAccount || undefined,
+        data: {
+          fullName: form.fullName.trim(),
+          phone: opt(form.phone),
+          email: opt(form.email),
+          dateOfBirth: opt(form.dateOfBirth),
+          gender: (form.gender || undefined) as import("@/types/tenant.types").Gender | undefined,
+          idCardNumber: opt(form.idCardNumber),
+          idCardIssuedDate: opt(form.idCardIssuedDate),
+          idCardIssuedPlace: opt(form.idCardIssuedPlace),
+          permanentAddress: opt(form.permanentAddress),
+          createAccount: form.createAccount || undefined,
+        },
       },
       {
         onSuccess: (newTenant) => {

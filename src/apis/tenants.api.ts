@@ -1,5 +1,5 @@
 import api from '@/lib/axios'
-import type { Tenant, CreateTenantPayload, UpdateTenantPayload, GetTenantsParams } from '@/types/tenant.types'
+import type { Tenant, CreateTenantPayload, UpdateTenantPayload, GetTenantsParams, ScanIdCardResult } from '@/types/tenant.types'
 import type { PaginatedResult } from '@/types/admin.types'
 
 export const tenantsApi = {
@@ -9,8 +9,22 @@ export const tenantsApi = {
   getById: (id: string) =>
     api.get<Tenant>(`/landlord/tenants/${id}`).then((r) => r.data),
 
-  create: (data: CreateTenantPayload) =>
-    api.post<Tenant>('/landlord/tenants', data).then((r) => r.data),
+  scanIdCard: (front: File, back: File) => {
+    const fd = new FormData()
+    fd.append('front', front)
+    fd.append('back', back)
+    return api.post<ScanIdCardResult>('/landlord/tenants/scan-id-card', fd).then((r) => r.data)
+  },
+
+  create: (data: CreateTenantPayload, files?: { idCardFront?: File; idCardBack?: File }) => {
+    const fd = new FormData()
+    Object.entries(data).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') fd.append(k, String(v))
+    })
+    if (files?.idCardFront) fd.append('idCardFront', files.idCardFront)
+    if (files?.idCardBack) fd.append('idCardBack', files.idCardBack)
+    return api.post<Tenant>('/landlord/tenants', fd).then((r) => r.data)
+  },
 
   update: (id: string, data: UpdateTenantPayload) =>
     api.patch<Tenant>(`/landlord/tenants/${id}`, data).then((r) => r.data),
