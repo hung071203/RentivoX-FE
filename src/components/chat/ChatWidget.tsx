@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { Bot, X, Send, RotateCcw, Loader2 } from 'lucide-react'
+import { Bot, X, Send, RotateCcw, Loader2, Maximize2, Minimize2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Button } from '@/components/ui/button'
@@ -97,6 +97,7 @@ function MessageBubble({ msg }: { msg: Message }) {
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [interactionId, setInteractionId] = useState<string | undefined>()
@@ -228,15 +229,28 @@ export default function ChatWidget() {
 
   return (
     <>
+      {/* Backdrop khi expand */}
+      {isOpen && isExpanded && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          onClick={() => setIsExpanded(false)}
+        />
+      )}
+
       {/* Chat panel */}
       {isOpen && (
-        <div className="fixed bottom-20 right-6 z-50 w-[380px] flex flex-col rounded-2xl shadow-2xl border bg-background overflow-hidden"
-          style={{ height: '520px' }}
+        <div
+          className={cn(
+            'fixed z-50 flex flex-col rounded-2xl shadow-2xl border bg-background overflow-hidden transition-all duration-300',
+            isExpanded
+              ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[80vh] max-h-[700px]'
+              : 'bottom-20 right-6 w-[380px] h-[520px]',
+          )}
         >
           {/* Header */}
           <div className="flex items-center gap-2.5 px-4 py-3 bg-primary text-primary-foreground shrink-0">
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-              <Bot className="w-4.5 h-4.5" />
+              <Bot className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold leading-tight">Trợ lý AI</p>
@@ -250,6 +264,15 @@ export default function ChatWidget() {
               title="Cuộc hội thoại mới"
             >
               <RotateCcw className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground"
+              onClick={() => setIsExpanded((v) => !v)}
+              title={isExpanded ? 'Thu nhỏ' : 'Mở rộng'}
+            >
+              {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             </Button>
             <Button
               variant="ghost"
