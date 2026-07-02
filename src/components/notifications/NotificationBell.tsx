@@ -327,7 +327,7 @@ export default function NotificationBell() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b">
             <span className="text-sm font-semibold">Thông báo</span>
-            {tab === 'unread' && unreadCount > 0 && (
+            {unreadCount > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
