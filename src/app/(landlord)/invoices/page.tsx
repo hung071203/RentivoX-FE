@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { MoreHorizontal, Plus, FileText, X, CreditCard, Download, Loader2, FileSpreadsheet } from "lucide-react";
+import { MoreHorizontal, Plus, FileText, X, CreditCard, Download, Loader2, FileSpreadsheet, CheckCircle2 } from "lucide-react";
 import PageHeader from "@/components/common/PageHeader";
 import { SortableHead } from "@/components/common/SortableHead";
 import { Button } from "@/components/ui/button";
@@ -263,6 +263,54 @@ function InvoiceDetailSheet({
               </table>
             </div>
           </div>
+
+          {invoice.qrCodeUrl && invoice.status !== "cancelled" && (
+            <div className="rounded-lg border p-4 flex items-center gap-4">
+              <img
+                src={invoice.qrCodeUrl}
+                alt="QR chuyển khoản"
+                className="h-32 w-32 rounded-md border shrink-0 bg-white"
+              />
+              <div className="text-sm">
+                <p className="font-medium mb-1">QR chuyển khoản</p>
+                <p className="text-muted-foreground">
+                  Khách thuê quét mã để chuyển khoản đúng số tiền hóa đơn — nội dung tự điền mã hóa đơn.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {(invoice.paymentProofs?.length ?? 0) > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-3">Xác nhận từ khách thuê</p>
+              <div className="space-y-2">
+                {invoice.paymentProofs!.map((p) => (
+                  <a
+                    key={p.id}
+                    href={p.proofImageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-2.5 rounded-lg border hover:bg-muted/40 transition-colors"
+                  >
+                    <img
+                      src={p.proofImageUrl}
+                      alt="Ảnh chuyển khoản"
+                      loading="lazy"
+                      decoding="async"
+                      className="h-12 w-12 rounded-md border object-cover shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                        {formatDate(p.createdAt)}
+                      </p>
+                      {p.note && <p className="text-sm truncate">{p.note}</p>}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {invoice.notes && (
             <div>

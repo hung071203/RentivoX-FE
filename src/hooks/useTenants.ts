@@ -62,6 +62,18 @@ export function useToggleTenantActive() {
   })
 }
 
+export function useResetTenantPassword() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => tenantsApi.resetPassword(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tenants'] })
+      toast.success('Đã cấp lại mật khẩu, email đã được gửi cho khách thuê')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+}
+
 export function useUploadTenantIdCard() {
   const qc = useQueryClient()
   return useMutation({

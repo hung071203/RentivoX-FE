@@ -1,10 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
   tenantApi,
   type GetTenantContractsParams,
   type GetTenantInvoicesParams,
   type GetTenantPaymentsParams,
 } from '@/apis/tenant.api'
+import { getErrorMessage } from '@/utils/error'
 
 export function useTenantDashboard() {
   return useQuery({
@@ -49,6 +51,19 @@ export function useTenantInvoice(id: string) {
     queryKey: ['tenant-invoices', id],
     queryFn: () => tenantApi.getInvoiceById(id),
     enabled: !!id,
+  })
+}
+
+export function useSubmitPaymentProof() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, image, note }: { id: string; image: File; note?: string }) =>
+      tenantApi.submitPaymentProof(id, image, note),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ['tenant-invoices', id] })
+      toast.success('Đã gửi xác nhận chuyển khoản đến chủ trọ')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 }
 

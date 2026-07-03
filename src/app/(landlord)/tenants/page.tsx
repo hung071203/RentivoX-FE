@@ -20,6 +20,7 @@ import {
   FileSpreadsheet,
   Loader2,
   Car,
+  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { tenantsApi } from "@/apis/tenants.api";
@@ -72,6 +73,7 @@ import {
   useDeleteTenant,
   useUploadTenantIdCard,
   useToggleTenantActive,
+  useResetTenantPassword,
 } from "@/hooks/useTenants";
 import { GENDER_LABEL } from "@/constants/enums";
 import { formatDate } from "@/utils/format";
@@ -343,6 +345,7 @@ export default function TenantsPage() {
   const [editScanning, setEditScanning] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewTenant, setViewTenant] = useState<Tenant | null>(null);
+  const [resetPasswordId, setResetPasswordId] = useState<string | null>(null);
 
   const { data, isLoading } = useTenants(params);
   const createTenant = useCreateTenant();
@@ -350,6 +353,7 @@ export default function TenantsPage() {
   const deleteTenant = useDeleteTenant();
   const uploadIdCard = useUploadTenantIdCard();
   const toggleActive = useToggleTenantActive();
+  const resetPassword = useResetTenantPassword();
 
   // ── Create form ──────────────────────────────────────────────────────────
   const {
@@ -751,27 +755,33 @@ export default function TenantsPage() {
                           Phương tiện
                         </DropdownMenuItem>
                         {tenant.userId && (
-                          <DropdownMenuItem
-                            onClick={() => toggleActive.mutate(tenant.id)}
-                            disabled={toggleActive.isPending}
-                            className={
-                              tenant.user?.isActive === false
-                                ? "text-emerald-600 focus:text-emerald-600"
-                                : "text-amber-600 focus:text-amber-600"
-                            }
-                          >
-                            {tenant.user?.isActive === false ? (
-                              <>
-                                <Unlock className="h-4 w-4 mr-2" />
-                                Mở khóa
-                              </>
-                            ) : (
-                              <>
-                                <Lock className="h-4 w-4 mr-2" />
-                                Khóa tài khoản
-                              </>
-                            )}
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => toggleActive.mutate(tenant.id)}
+                              disabled={toggleActive.isPending}
+                              className={
+                                tenant.user?.isActive === false
+                                  ? "text-emerald-600 focus:text-emerald-600"
+                                  : "text-amber-600 focus:text-amber-600"
+                              }
+                            >
+                              {tenant.user?.isActive === false ? (
+                                <>
+                                  <Unlock className="h-4 w-4 mr-2" />
+                                  Mở khóa
+                                </>
+                              ) : (
+                                <>
+                                  <Lock className="h-4 w-4 mr-2" />
+                                  Khóa tài khoản
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setResetPasswordId(tenant.id)}>
+                              <KeyRound className="h-4 w-4 mr-2 text-muted-foreground" />
+                              Cấp lại mật khẩu
+                            </DropdownMenuItem>
+                          </>
                         )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -1268,6 +1278,29 @@ export default function TenantsPage() {
               disabled={deleteTenant.isPending}
             >
               {deleteTenant.isPending ? "Đang xóa..." : "Xóa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Reset Password Dialog ─────────────────────────────────────────────── */}
+      <Dialog open={!!resetPasswordId} onOpenChange={(o) => { if (!o) setResetPasswordId(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Cấp lại mật khẩu</DialogTitle>
+            <DialogDescription>
+              Mật khẩu hiện tại sẽ bị vô hiệu hóa. Hệ thống sẽ sinh mật khẩu mới và gửi qua email cho khách thuê.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setResetPasswordId(null)}>Hủy</Button>
+            <Button
+              onClick={() => {
+                if (resetPasswordId) resetPassword.mutate(resetPasswordId, { onSuccess: () => setResetPasswordId(null) });
+              }}
+              disabled={resetPassword.isPending}
+            >
+              {resetPassword.isPending ? "Đang xử lý..." : "Cấp lại mật khẩu"}
             </Button>
           </DialogFooter>
         </DialogContent>

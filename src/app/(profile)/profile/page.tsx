@@ -23,6 +23,8 @@ import {
   useUpdateEmail,
   useUpdatePassword,
 } from '@/hooks/useProfile'
+import { BankCombobox } from '@/components/common/BankCombobox'
+import { VIETNAM_BANKS } from '@/constants/banks'
 import type { User } from '@/types/auth.types'
 import dayjs from 'dayjs'
 
@@ -55,6 +57,22 @@ const verifyOtpSchema = z.object({
   otp: z.string().regex(/^\d{6}$/, 'Mã OTP gồm 6 chữ số'),
 })
 
+const bankSchema = z
+  .object({
+    bankBin: z.string(),
+    bankAccountNumber: z.string(),
+    bankAccountHolder: z.string(),
+  })
+  .partial()
+  .refine((d) => !d.bankAccountNumber || !!d.bankBin, {
+    message: 'Vui lòng chọn ngân hàng',
+    path: ['bankBin'],
+  })
+  .refine((d) => !d.bankBin || !!d.bankAccountNumber, {
+    message: 'Vui lòng nhập số tài khoản',
+    path: ['bankAccountNumber'],
+  })
+
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Vui lòng nhập mật khẩu hiện tại'),
@@ -75,6 +93,7 @@ const passwordSchema = z
 type ProfileForm = z.infer<typeof profileSchema>
 type SendOtpForm = z.infer<typeof sendOtpSchema>
 type VerifyOtpForm = z.infer<typeof verifyOtpSchema>
+type BankForm = z.infer<typeof bankSchema>
 type PasswordForm = z.infer<typeof passwordSchema>
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────────
@@ -118,6 +137,82 @@ function PwInput({ show, onToggle, ...props }: React.ComponentProps<typeof Input
         {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </button>
     </div>
+  )
+}
+
+// ─── Bank account card — chỉ hiện cho landlord ────────────────────────────────────
+
+function BankAccountCard({ profile }: { profile: User }) {
+  const updateProfile = useUpdateProfile()
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    setValue,
+    formState: { errors },
+  } = useForm<BankForm>({
+    resolver: zodResolver(bankSchema),
+    defaultValues: {
+      bankBin: profile.bankBin ?? '',
+      bankAccountNumber: profile.bankAccountNumber ?? '',
+      bankAccountHolder: profile.bankAccountHolder ?? '',
+    },
+  })
+
+  function onSubmit(form: BankForm) {
+    const bank = form.bankBin ? VIETNAM_BANKS.find((b) => b.bin === form.bankBin) : undefined
+    updateProfile.mutate({
+      bankBin: form.bankBin || undefined,
+      bankAccountNumber: form.bankAccountNumber || undefined,
+      bankAccountHolder: form.bankAccountHolder || undefined,
+      bankName: bank?.shortName,
+    })
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base">Tài khoản ngân hàng</CardTitle>
+        <CardDescription>
+          Dùng để tạo mã QR chuyển khoản trên hóa đơn gửi khách thuê — để trống nếu chưa muốn dùng QR
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <FormField label="Ngân hàng" error={errors.bankBin?.message}>
+            <Controller
+              control={control}
+              name="bankBin"
+              render={({ field }) => (
+                <BankCombobox
+                  value={field.value ?? ''}
+                  onChange={(bank) => setValue('bankBin', bank.bin, { shouldValidate: true })}
+                />
+              )}
+            />
+          </FormField>
+
+          <FormField label="Số tài khoản" error={errors.bankAccountNumber?.message}>
+            <Input {...register('bankAccountNumber')} placeholder="0123456789" />
+          </FormField>
+
+          <FormField label="Tên chủ tài khoản" error={errors.bankAccountHolder?.message}>
+            <Input
+              {...register('bankAccountHolder')}
+              placeholder="NGUYEN VAN A"
+              className="uppercase"
+            />
+          </FormField>
+
+          <div className="flex justify-end pt-1">
+            <Button type="submit" disabled={updateProfile.isPending}>
+              {updateProfile.isPending ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -324,6 +419,9 @@ function ProfileContent({ profile }: { profile: User }) {
             </form>
           </CardContent>
         </Card>
+
+        {/* ── Tài khoản ngân hàng — chỉ hiện cho landlord ─────────────────── */}
+        {profile.role === 'landlord' && <BankAccountCard profile={profile} />}
 
         {/* ── CCCD — chỉ hiện cho tenant, read-only ─────────────────────── */}
         {profile.role === 'tenant' && (

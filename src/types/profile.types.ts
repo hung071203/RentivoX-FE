@@ -5,6 +5,10 @@ export interface UpdateProfilePayload {
   phone?: string
   dateOfBirth?: string | null
   gender?: Gender | null
+  bankBin?: string
+  bankAccountNumber?: string
+  bankAccountHolder?: string
+  bankName?: string
 }
 
 export interface SendOtpEmailPayload {

@@ -35,6 +35,9 @@ export const tenantsApi = {
   toggleActive: (id: string) =>
     api.patch<Tenant>(`/landlord/tenants/${id}/toggle-active`).then((r) => r.data),
 
+  resetPassword: (id: string) =>
+    api.patch<Tenant>(`/landlord/tenants/${id}/reset-password`).then((r) => r.data),
+
   exportExcel: (params: { search?: string; hasAccount?: boolean }) =>
     api.get('/landlord/tenants/export', { params, responseType: 'blob' }).then((r) => r.data as Blob),
 

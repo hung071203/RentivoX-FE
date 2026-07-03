@@ -19,6 +19,11 @@ export interface User {
   permanentAddress?: string | null
   idCardFrontUrl?: string | null
   idCardBackUrl?: string | null
+  // Chỉ dùng khi role === 'landlord' — dùng để tạo QR chuyển khoản (VietQR) trên hóa đơn
+  bankBin?: string | null
+  bankAccountNumber?: string | null
+  bankAccountHolder?: string | null
+  bankName?: string | null
 }
 
 export interface LoginRequest {

@@ -48,6 +48,15 @@ export interface InvoiceContract {
   }
 }
 
+export interface PaymentProof {
+  id: string
+  invoiceId: string
+  tenantId: string
+  proofImageUrl: string
+  note: string | null
+  createdAt: string
+}
+
 export interface Invoice {
   id: string
   invoiceNumber: string | null
@@ -62,6 +71,14 @@ export interface Invoice {
   createdAt: string
   updatedAt: string
   items?: InvoiceItem[]
+  // Computed — null nếu landlord chưa khai báo tài khoản ngân hàng
+  qrCodeUrl?: string | null
+  // Chỉ có trong response của GET /:id (cả landlord lẫn tenant)
+  paymentProofs?: PaymentProof[]
+}
+
+export interface SubmitPaymentProofPayload {
+  note?: string
 }
 
 export interface GetInvoicesParams {

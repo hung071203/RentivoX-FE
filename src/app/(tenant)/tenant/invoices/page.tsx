@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { AlertCircle, ExternalLink } from 'lucide-react'
+import { AlertCircle, ExternalLink, Camera, CheckCircle2, MoreHorizontal, Eye } from 'lucide-react'
 import PageHeader from '@/components/common/PageHeader'
 import { SortableHead } from '@/components/common/SortableHead'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -11,8 +11,14 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { useTenantInvoices, useTenantInvoice } from '@/hooks/useTenant'
+import { useTenantInvoices, useTenantInvoice, useSubmitPaymentProof } from '@/hooks/useTenant'
 import { formatCurrency, formatDate, formatPeriod } from '@/utils/format'
 import { INVOICE_STATUS_LABEL } from '@/constants/enums'
 import { cn } from '@/lib/utils'
@@ -48,16 +54,117 @@ function InvoiceStatusBadge({ status, overdue }: { status: InvoiceStatus; overdu
   )
 }
 
+// ─── Payment proof dialog — xác nhận đã chuyển khoản kèm ảnh ───────────────────
+
+function PaymentProofDialog({
+  invoiceId,
+  open,
+  onClose,
+}: {
+  invoiceId: string
+  open: boolean
+  onClose: () => void
+}) {
+  const submitProof = useSubmitPaymentProof()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [note, setNote] = useState('')
+
+  function reset() {
+    if (preview) URL.revokeObjectURL(preview)
+    setFile(null)
+    setPreview(null)
+    setNote('')
+  }
+
+  function handleClose() {
+    reset()
+    onClose()
+  }
+
+  function handleFile(f: File) {
+    if (preview) URL.revokeObjectURL(preview)
+    setFile(f)
+    setPreview(URL.createObjectURL(f))
+  }
+
+  function handleSubmit() {
+    if (!file) return
+    submitProof.mutate(
+      { id: invoiceId, image: file, note: note.trim() || undefined },
+      { onSuccess: handleClose },
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Xác nhận đã chuyển khoản</DialogTitle>
+          <DialogDescription>
+            Gửi ảnh chụp màn hình chuyển khoản để chủ trọ đối chiếu. Đây chỉ là thông báo — chủ trọ vẫn cần tự ghi nhận thanh toán.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <label
+            className="relative flex flex-col items-center justify-center border-2 border-dashed rounded-lg overflow-hidden bg-muted/30 cursor-pointer hover:border-primary/40 transition-colors"
+            style={{ aspectRatio: '16/10' }}
+          >
+            {preview ? (
+              <img src={preview} alt="Ảnh chuyển khoản" className="w-full h-full object-cover" />
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-1.5 text-muted-foreground">
+                <Camera className="h-6 w-6" />
+                <span className="text-xs">Nhấn để chọn ảnh</span>
+              </div>
+            )}
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) handleFile(f)
+                e.target.value = ''
+              }}
+            />
+          </label>
+
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            placeholder="Ghi chú thêm (tùy chọn)"
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+          />
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose}>Hủy</Button>
+          <Button onClick={handleSubmit} disabled={!file || submitProof.isPending}>
+            {submitProof.isPending ? 'Đang gửi...' : 'Gửi xác nhận'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ─── Detail Sheet ─────────────────────────────────────────────────────────────
 
 function InvoiceDetailSheet({
   invoiceId,
   open,
   onClose,
+  onOpenProof,
 }: {
   invoiceId: string | null
   open: boolean
   onClose: () => void
+  onOpenProof: (invoiceId: string) => void
 }) {
   const { data: invoice } = useTenantInvoice(invoiceId ?? '')
   if (!invoice) return null
@@ -150,6 +257,61 @@ function InvoiceDetailSheet({
             <span className="text-lg font-bold">{formatCurrency(invoice.totalAmount)}</span>
           </div>
 
+          {invoice.qrCodeUrl && invoice.status === 'unpaid' && (
+            <div className="rounded-lg border p-4 flex flex-col items-center gap-3 text-center">
+              <p className="text-sm font-medium">Quét mã để chuyển khoản</p>
+              <img
+                src={invoice.qrCodeUrl}
+                alt="QR chuyển khoản"
+                className="h-48 w-48 rounded-md border bg-white"
+              />
+              <p className="text-xs text-muted-foreground">
+                Số tiền và nội dung chuyển khoản đã được điền sẵn trong mã QR
+              </p>
+            </div>
+          )}
+
+          {invoice.status === 'unpaid' && (
+            <Button variant="outline" className="w-full" onClick={() => onOpenProof(invoice.id)}>
+              <Camera className="h-4 w-4 mr-2" />
+              Xác nhận đã chuyển khoản
+            </Button>
+          )}
+
+          {(invoice.paymentProofs?.length ?? 0) > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                Đã gửi xác nhận
+              </h3>
+              <div className="space-y-2">
+                {invoice.paymentProofs!.map((p) => (
+                  <a
+                    key={p.id}
+                    href={p.proofImageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-2.5 rounded-lg border hover:bg-muted/40 transition-colors"
+                  >
+                    <img
+                      src={p.proofImageUrl}
+                      alt="Ảnh chuyển khoản"
+                      loading="lazy"
+                      decoding="async"
+                      className="h-12 w-12 rounded-md border object-cover shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                        {formatDate(p.createdAt)}
+                      </p>
+                      {p.note && <p className="text-sm truncate">{p.note}</p>}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {invoice.notes && (
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
@@ -179,6 +341,7 @@ export default function TenantInvoicesPage() {
   const [orderDirection, setOrderDirection] = useState<'ASC' | 'DESC'>('DESC')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [proofInvoiceId, setProofInvoiceId] = useState<string | null>(null)
 
   const handleSort = (field: string, direction: 'ASC' | 'DESC' | undefined) => {
     setOrderBy(direction ? field : undefined)
@@ -301,6 +464,7 @@ export default function TenantInvoicesPage() {
                 <SortableHead label="Tổng tiền" field="totalAmount" orderBy={orderBy} orderDirection={orderDirection} onSort={handleSort} />
                 <TableHead>Trạng thái</TableHead>
                 <SortableHead label="Hạn TT" field="dueDate" orderBy={orderBy} orderDirection={orderDirection} onSort={handleSort} />
+                <TableHead className="pr-4 text-right">Hành động</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -341,6 +505,30 @@ export default function TenantInvoicesPage() {
                       <TableCell className={cn('text-sm', isOverdue ? 'text-red-600 font-medium' : 'text-muted-foreground')}>
                         {formatDate(inv.dueDate)}
                       </TableCell>
+                      <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-52">
+                            <DropdownMenuItem onClick={() => openDetail(inv.id)}>
+                              <Eye className="h-4 w-4 mr-2 text-muted-foreground" />
+                              Xem chi tiết
+                            </DropdownMenuItem>
+                            {inv.status === 'unpaid' && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setProofInvoiceId(inv.id)}>
+                                  <Camera className="h-4 w-4 mr-2 text-muted-foreground" />
+                                  Xác nhận đã chuyển khoản
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   )
                 })
@@ -368,6 +556,13 @@ export default function TenantInvoicesPage() {
         invoiceId={selectedId}
         open={detailOpen}
         onClose={() => { setDetailOpen(false); setSelectedId(null) }}
+        onOpenProof={setProofInvoiceId}
+      />
+
+      <PaymentProofDialog
+        invoiceId={proofInvoiceId ?? ''}
+        open={!!proofInvoiceId}
+        onClose={() => setProofInvoiceId(null)}
       />
     </div>
   )

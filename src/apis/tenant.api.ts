@@ -8,6 +8,7 @@ import type { ContractStatus } from '@/types/contract.types'
 import type { InvoiceStatus } from '@/types/invoice.types'
 import type { PaymentMethod } from '@/types/payment.types'
 import type { Vehicle } from '@/types/vehicle.types'
+import type { PaymentProof } from '@/types/invoice.types'
 
 export interface GetTenantContractsParams {
   page?: number
@@ -52,6 +53,13 @@ export const tenantApi = {
 
   getInvoiceById: (id: string) =>
     api.get<Invoice>(`/tenant/invoices/${id}`).then((r) => r.data),
+
+  submitPaymentProof: (id: string, image: File, note?: string) => {
+    const fd = new FormData()
+    fd.append('image', image)
+    if (note) fd.append('note', note)
+    return api.post<PaymentProof>(`/tenant/invoices/${id}/payment-proof`, fd).then((r) => r.data)
+  },
 
   getPayments: (params?: GetTenantPaymentsParams) =>
     api.get<PaginatedResult<Payment>>('/tenant/payments', { params }).then((r) => r.data),
