@@ -111,7 +111,7 @@ function NotiToastContent({
     <div
       className={cn(
         'flex items-start gap-3 bg-background border border-border rounded-xl shadow-lg px-4 py-3.5 w-80',
-        onClick && 'cursor-pointer hover:bg-muted/30 transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted transition-colors',
       )}
       onClick={onClick}
     >
