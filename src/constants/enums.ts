@@ -27,6 +27,19 @@ export const SERVICE_TYPE_LABEL: Record<string, string> = {
   fixed: 'Cố định',
 }
 
+export const SERVICE_UNIT_PRESETS: string[] = [
+  'kWh',
+  'Khối',
+  'Tháng',
+  'Người',
+  'Chiếc',
+  'Lần',
+  'Cái',
+  'Bình',
+  'm2',
+  'Giờ',
+]
+
 export const INVOICE_STATUS_LABEL: Record<string, string> = {
   unpaid: 'Chưa thanh toán',
   paid: 'Đã thanh toán',

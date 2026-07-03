@@ -66,8 +66,9 @@ import {
   type AddressValue,
 } from "@/components/common/AddressSelector";
 import { SortableHead } from "@/components/common/SortableHead";
+import { EditableCombobox } from "@/components/common/EditableCombobox";
 import { formatCurrency, formatDate } from "@/utils/format";
-import { SERVICE_TYPE_LABEL } from "@/constants/enums";
+import { SERVICE_TYPE_LABEL, SERVICE_UNIT_PRESETS } from "@/constants/enums";
 import type {
   CreatePropertyPayload,
   GetPropertiesParams,
@@ -335,12 +336,12 @@ function PropertyServicesSheet({ property, open, onClose }: { property: Property
                 </SelectContent>
               </Select>
               {addType === "metered" && (
-                <input
-                  type="text"
-                  placeholder="Đơn vị đo (VD: kWh, m³)"
+                <EditableCombobox
                   value={addUnit}
-                  onChange={(e) => setAddUnit(e.target.value)}
-                  className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  onChange={setAddUnit}
+                  presets={SERVICE_UNIT_PRESETS}
+                  placeholder="Chọn hoặc nhập đơn vị đo"
+                  searchPlaceholder="Tìm hoặc nhập đơn vị mới..."
                 />
               )}
               <div className="flex gap-2">

@@ -56,10 +56,11 @@ import {
 } from "@/components/ui/select";
 import PageHeader from "@/components/common/PageHeader";
 import { SortableHead } from "@/components/common/SortableHead";
+import { EditableCombobox } from "@/components/common/EditableCombobox";
 import { useServices, useCreateService, useUpdateService, useDeleteService } from "@/hooks/useServices";
 import { useProperties } from "@/hooks/useProperties";
 import { formatCurrency } from "@/utils/format";
-import { SERVICE_TYPE_LABEL } from "@/constants/enums";
+import { SERVICE_TYPE_LABEL, SERVICE_UNIT_PRESETS } from "@/constants/enums";
 import type {
   Service,
   ServiceType,
@@ -524,7 +525,19 @@ export default function ServicesPage() {
 
               {typeC === "metered" && (
                 <FormField label="Đơn vị đo" error={errC.unit?.message}>
-                  <Input placeholder="VD: kWh, m³" {...regC("unit")} />
+                  <Controller
+                    name="unit"
+                    control={controlC}
+                    render={({ field }) => (
+                      <EditableCombobox
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        presets={SERVICE_UNIT_PRESETS}
+                        placeholder="Chọn hoặc nhập đơn vị đo"
+                        searchPlaceholder="Tìm hoặc nhập đơn vị mới..."
+                      />
+                    )}
+                  />
                 </FormField>
               )}
 
