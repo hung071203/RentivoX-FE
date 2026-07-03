@@ -27,6 +27,13 @@ export const SERVICE_TYPE_LABEL: Record<string, string> = {
   fixed: 'Cố định',
 }
 
+export const VEHICLE_TYPE_LABEL: Record<string, string> = {
+  motorbike: 'Xe máy',
+  car: 'Ô tô',
+  bicycle: 'Xe đạp',
+  other: 'Khác',
+}
+
 export const SERVICE_UNIT_PRESETS: string[] = [
   'kWh',
   'Khối',

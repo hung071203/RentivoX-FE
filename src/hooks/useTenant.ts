@@ -66,3 +66,10 @@ export function useTenantPayment(id: string) {
     enabled: !!id,
   })
 }
+
+export function useTenantVehicles() {
+  return useQuery({
+    queryKey: ['tenant-vehicles'],
+    queryFn: () => tenantApi.getVehicles(),
+  })
+}

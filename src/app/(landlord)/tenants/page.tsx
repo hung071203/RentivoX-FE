@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,6 +19,7 @@ import {
   Unlock,
   FileSpreadsheet,
   Loader2,
+  Car,
 } from "lucide-react";
 import { toast } from "sonner";
 import { tenantsApi } from "@/apis/tenants.api";
@@ -322,6 +324,7 @@ function IdCardCapture({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TenantsPage() {
+  const router = useRouter();
   const today = new Date().toISOString().split("T")[0];
   const maxDob16 = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 16); return d.toISOString().split("T")[0]; })();
 
@@ -743,6 +746,10 @@ export default function TenantsPage() {
                           <Pencil className="h-4 w-4 mr-2 text-muted-foreground" />
                           Chỉnh sửa
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push(`/vehicles?tenantId=${tenant.id}`)}>
+                          <Car className="h-4 w-4 mr-2 text-muted-foreground" />
+                          Phương tiện
+                        </DropdownMenuItem>
                         {tenant.userId && (
                           <DropdownMenuItem
                             onClick={() => toggleActive.mutate(tenant.id)}
@@ -954,6 +961,13 @@ export default function TenantsPage() {
             )}
           </div>
           <div className="px-6 py-4 border-t flex items-center justify-end gap-3 bg-muted/30">
+            <Button
+              variant="outline"
+              onClick={() => { const t = viewTenant; setViewTenant(null); router.push(`/vehicles?tenantId=${t?.id}`); }}
+            >
+              <Car className="h-4 w-4 mr-2" />
+              Phương tiện
+            </Button>
             <Button
               variant="outline"
               onClick={() => { const t = viewTenant; setViewTenant(null); if (t) openEdit(t); }}

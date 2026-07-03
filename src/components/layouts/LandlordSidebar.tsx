@@ -10,6 +10,7 @@ import {
   Zap,
   Receipt,
   Wallet,
+  Car,
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { cn } from '@/lib/utils'
@@ -20,6 +21,7 @@ const navItems = [
   { label: 'Phòng', href: ROUTES.ROOMS, icon: DoorOpen },
   { label: 'Khách thuê', href: ROUTES.TENANTS, icon: Users },
   { label: 'Hợp đồng', href: ROUTES.CONTRACTS, icon: FileText },
+  { label: 'Phương tiện', href: ROUTES.VEHICLES, icon: Car },
   { label: 'Chỉ số dịch vụ', href: ROUTES.METER_READINGS, icon: Zap },
   { label: 'Hóa đơn', href: ROUTES.INVOICES, icon: Receipt },
   { label: 'Thanh toán', href: ROUTES.PAYMENTS, icon: Wallet },

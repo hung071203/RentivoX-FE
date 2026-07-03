@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, FileText, Receipt, Wallet, Building2 } from 'lucide-react'
+import { LayoutDashboard, FileText, Receipt, Wallet, Building2, Car } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { cn } from '@/lib/utils'
 
@@ -10,6 +10,7 @@ const navItems = [
   { label: 'Hợp đồng', href: ROUTES.TENANT_CONTRACTS, icon: FileText },
   { label: 'Hóa đơn', href: ROUTES.TENANT_INVOICES, icon: Receipt },
   { label: 'Thanh toán', href: ROUTES.TENANT_PAYMENTS, icon: Wallet },
+  { label: 'Phương tiện', href: ROUTES.TENANT_VEHICLES, icon: Car },
 ]
 
 export default function TenantSidebar() {

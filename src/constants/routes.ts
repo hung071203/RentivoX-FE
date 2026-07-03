@@ -19,6 +19,7 @@ export const ROUTES = {
   METER_READINGS: '/meter-readings',
   INVOICES: '/invoices',
   PAYMENTS: '/payments',
+  VEHICLES: '/vehicles',
 
   // Tenant
   TENANT_DASHBOARD: '/tenant/dashboard',
@@ -26,6 +27,7 @@ export const ROUTES = {
   TENANT_CONTRACTS: '/tenant/contracts',
   TENANT_INVOICES: '/tenant/invoices',
   TENANT_PAYMENTS: '/tenant/payments',
+  TENANT_VEHICLES: '/tenant/vehicles',
 } as const
 
 export const ROLE_HOME = {

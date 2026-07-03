@@ -7,6 +7,7 @@ import type { TenantDashboardStats, TenantRoomDetail } from '@/types/tenant-dash
 import type { ContractStatus } from '@/types/contract.types'
 import type { InvoiceStatus } from '@/types/invoice.types'
 import type { PaymentMethod } from '@/types/payment.types'
+import type { Vehicle } from '@/types/vehicle.types'
 
 export interface GetTenantContractsParams {
   page?: number
@@ -57,4 +58,7 @@ export const tenantApi = {
 
   getPaymentById: (id: string) =>
     api.get<Payment>(`/tenant/payments/${id}`).then((r) => r.data),
+
+  getVehicles: () =>
+    api.get<Vehicle[]>('/tenant/vehicles').then((r) => r.data),
 }
